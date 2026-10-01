@@ -9,6 +9,7 @@ from spoonbot.dto.AuthorizeUrl import AuthorizeUrl
 from spoonbot.enums.Country import Country
 from spoonbot.enums.SpoonPermission import SpoonPermission
 
+STATE_SIZE = 24
 
 class SpoonBot():
     def __init__(self,
@@ -35,7 +36,7 @@ class SpoonBot():
         assert self.spoon_client_id is not None, "Required SPOON_CLIENT_ID"
         assert self.oauth_redirect_url is not None, "Required SPOON_OAUTH_REDIRECT_URL"
         
-        state = secrets.token_urlsafe(24)
+        state = secrets.token_urlsafe(STATE_SIZE)
         url =  self.constants.oauth_authorize_base_url \
             + "?response_type=code" \
             + f"&client_id={urllib.parse.quote_plus(self.spoon_client_id)}" \
