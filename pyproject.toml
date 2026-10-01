@@ -1,0 +1,24 @@
+[project]
+name = "spoonbot"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "YomogiBeta" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "pydantic>=2.13.5",
+    "oauthlib>=4.0.0",
+    "aiohttp>=3.14.3",
+    "aiohttp-sse-client>=0.2.1"
+]
+
+[project.optional-dependencies]
+fastapi = [
+    "fastapi>=0.142.2"
+]
+
+[build-system]
+requires = ["uv_build>=0.9.15,<0.10.0"]
+build-backend = "uv_build"
