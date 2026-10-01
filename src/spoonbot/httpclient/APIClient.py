@@ -21,8 +21,8 @@ class APIClient(ABC):
         session = aiohttp.ClientSession(base_url=base_url, connector=connector)
         return cls(session)
     
-    async def get(self, endpoint: str, queries: dict[str, Any], response_type: Type[ResponseGenericType]) -> ResponseGenericType:
-        async with self._session.get(endpoint, params=queries) as response:
+    async def get(self, endpoint: str, queries: dict[str, Any], response_type: Type[ResponseGenericType], headers: dict[str, str] | None = None) -> ResponseGenericType:
+        async with self._session.get(endpoint, params=queries, headers=headers) as response:
             response.raise_for_status()
             raw_json = await response.json()
             try:
@@ -31,8 +31,8 @@ class APIClient(ABC):
             except ValidationError as exception:
                 raise exception
     
-    async def post(self, endpoint: str, body: Any, response_type: Type[ResponseGenericType]) -> ResponseGenericType:
-        async with self._session.post(endpoint, json=body) as response:
+    async def post(self, endpoint: str, body: Any, response_type: Type[ResponseGenericType], headers: dict[str, str] | None = None) -> ResponseGenericType:
+        async with self._session.post(endpoint, json=body, headers=headers) as response:
             response.raise_for_status()
             raw_json = await response.json()
             try:
