@@ -1,11 +1,9 @@
 import os
 import secrets
-import urllib.parse
 
 from oauthlib.oauth2 import WebApplicationClient
 
 from spoonbot.config.ConstantsConfig import ConstantsConfig
-from spoonbot.constants import SPACE
 from spoonbot.dto.AuthorizeUrl import AuthorizeUrl
 from spoonbot.enums.Country import Country
 from spoonbot.enums.SpoonPermission import SpoonPermission
@@ -43,22 +41,19 @@ class SpoonBot:
         assert self.oauth_redirect_url is not None, "Required SPOON_OAUTH_REDIRECT_URL"
 
         state = secrets.token_urlsafe(STATE_SIZE)
-        url = (
-            self.constants.oauth_authorize_base_url
-            + "?response_type=code"
-            + f"&client_id={urllib.parse.quote_plus(self.spoon_client_id)}"
-            + f"&redirect_uri={urllib.parse.quote_plus(self.oauth_redirect_url)}"
-            + f"&scope={self._encode_permissions()}"
-            + f"&state={state}"
+
+        url, _, _ = self.oauth_client.prepare_authorization_request(
+            self.constants.oauth_authorize_base_url,
+            redirect_url=self.oauth_redirect_url,
+            scope=self.permissions,
+            state=state,
         )
 
-        # PKCE implementation is required. However, Spoon developers have not implemented PKCE on their OAuth server. There’s nothing I can do about this.
+        # PKCE implementation is required.
+        # However, Spoon developers have not implemented PKCE on their OAuth server.
+        # There’s nothing I can do about this.
         # TODO: Store state
         return AuthorizeUrl(url, state)
-
-    def _encode_permissions(self):
-        assert len(self.permissions) > 0, "At least one permission must be set"
-        return urllib.parse.quote(SPACE.join(self.permissions))
 
     def get_accsess_token(self, code: str, state: str):
         assert code is not None and len(code) > 0, (
