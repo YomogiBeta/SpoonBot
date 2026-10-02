@@ -1,12 +1,9 @@
-
-
-
 from abc import ABC
-from typing import Any, Self, Type, TypeVar
+from typing import Any, Self, TypeVar
+
 import aiohttp
 from aiohttp import ClientSession
-from pydantic import TypeAdapter, ValidationError
-
+from pydantic import TypeAdapter
 
 ResponseGenericType = TypeVar("ResponseGenericType")
 
@@ -20,23 +17,31 @@ class APIClient(ABC):
         connector = aiohttp.TCPConnector()
         session = aiohttp.ClientSession(base_url=base_url, connector=connector)
         return cls(session)
-    
-    async def get(self, endpoint: str, queries: dict[str, Any], response_type: Type[ResponseGenericType], headers: dict[str, str] | None = None) -> ResponseGenericType:
-        async with self._session.get(endpoint, params=queries, headers=headers) as response:
+
+    async def get(
+        self,
+        endpoint: str,
+        queries: dict[str, Any],
+        response_type: type[ResponseGenericType],
+        headers: dict[str, str] | None = None,
+    ) -> ResponseGenericType:
+        async with self._session.get(
+            endpoint, params=queries, headers=headers
+        ) as response:
             response.raise_for_status()
             raw_json = await response.json()
-            try:
-                adapter = TypeAdapter(response_type)
-                return adapter.validate_python(raw_json)
-            except ValidationError as exception:
-                raise exception
-    
-    async def post(self, endpoint: str, body: Any, response_type: Type[ResponseGenericType], headers: dict[str, str] | None = None) -> ResponseGenericType:
+            adapter = TypeAdapter(response_type)
+            return adapter.validate_python(raw_json)
+
+    async def post(
+        self,
+        endpoint: str,
+        body: Any,
+        response_type: type[ResponseGenericType],
+        headers: dict[str, str] | None = None,
+    ) -> ResponseGenericType:
         async with self._session.post(endpoint, json=body, headers=headers) as response:
             response.raise_for_status()
             raw_json = await response.json()
-            try:
-                adapter = TypeAdapter(response_type)
-                return adapter.validate_python(raw_json)
-            except ValidationError as exception:
-                raise exception
+            adapter = TypeAdapter(response_type)
+            return adapter.validate_python(raw_json)

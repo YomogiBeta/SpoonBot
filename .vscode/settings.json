@@ -1,0 +1,19 @@
+{
+ "python.analysis.typeCheckingMode": "off",
+ "[python]": {
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+   "source.fixAll": "explicit",
+   "source.organizeImports": "explicit"
+  },
+  "editor.defaultFormatter": "charliermarsh.ruff"
+ },
+ "terminal.integrated.profiles.osx": {
+  "rosetta": {
+   "path": "arch",
+   "args": ["-x86_64", "bash", "-l"],
+   "overrideName": true
+  }
+ },
+ "terminal.integrated.defaultProfile.osx": "rosetta",
+}
