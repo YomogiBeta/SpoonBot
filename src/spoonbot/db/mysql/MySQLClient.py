@@ -6,6 +6,7 @@ from pydantic import TypeAdapter
 
 from spoonbot.db.DatabaseClient import DatabaseClient, ResponseGenericType
 from spoonbot.db.dto import UpdateResult
+from spoonbot.db.dto.MySQLConfig import MySQLConfig
 from spoonbot.db.types import DBValueType
 
 POOL_MIN_SIZE = 2
@@ -22,18 +23,14 @@ class MySQLClient(DatabaseClient):
 
     async def initialize(
         self,
-        host: str,
-        user: str,
-        password: str,
-        database: str,
-        charset: str = "utf8mb4",
+        config: MySQLConfig,
     ):
         self.pool = await aiomysql.create_pool(
-            host=host,
-            user=user,
-            password=password,
-            database=database,
-            charset=charset,
+            host=config.host,
+            user=config.user,
+            password=config.password,
+            database=config.database,
+            charset=config.charset,
             minsize=POOL_MIN_SIZE,
             maxsize=POOL_MAX_SIZE,
             autocommit=False,

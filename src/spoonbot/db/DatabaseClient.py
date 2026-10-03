@@ -1,14 +1,26 @@
 from abc import ABC, abstractmethod
-from contextlib import asynccontextmanager
-from typing import TypeVar
+from typing import Self, TypeVar
 
 from spoonbot.db.dto import UpdateResult
+from spoonbot.db.dto.MySQLConfig import MySQLConfig
+from spoonbot.db.mysql.MySQLClient import MySQLClient
+from spoonbot.db.sqlite3.Sqlite3Client import Sqlite3Client
 from spoonbot.db.types import DBValueType
 
 ResponseGenericType = TypeVar("ResponseGenericType")
 
 
 class DatabaseClient(ABC):
+    @classmethod
+    async def create(cls, config: MySQLConfig | None = None) -> Self:
+        if config is not None:
+            client = Sqlite3Client()
+            await client.initialize()
+            return client
+        client = MySQLClient()
+        await client.initialize(config)
+        return client
+
     @abstractmethod
     def initialize(self, *args, **kwargs):
         pass
@@ -31,7 +43,7 @@ class DatabaseClient(ABC):
     ) -> ResponseGenericType:
         pass
 
-    @asynccontextmanager
+    @abstractmethod
     async def transaction(self):
         pass
 

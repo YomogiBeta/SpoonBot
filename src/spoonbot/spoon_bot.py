@@ -7,12 +7,14 @@ from spoonbot.config.ConstantsConfig import ConstantsConfig
 from spoonbot.dto.AuthorizeUrl import AuthorizeUrl
 from spoonbot.enums.Country import Country
 from spoonbot.enums.SpoonPermission import SpoonPermission
+from spoonbot.httpclient.dto.Token import Token
+from spoonbot.httpclient.SpoonApiClient import SpoonApiClient
 
 STATE_SIZE = 24
 
 
 class SpoonBot:
-    def __init__(
+    async def init(
         self,
         permissions: set[SpoonPermission] | None,
         spoon_client_id: str | None,
@@ -35,6 +37,8 @@ class SpoonBot:
 
         self.constants = ConstantsConfig.create(self.target_country)
         self.oauth_client = WebApplicationClient(self.spoon_client_id)
+        self.api_client = await SpoonApiClient.create(self.constants.api_base_url)
+        self.api_client.initialize(self.spoon_client_id, self.spoon_client_secret)
 
     def user_authorize_url(self) -> AuthorizeUrl:
         assert self.spoon_client_id is not None, "Required SPOON_CLIENT_ID"
@@ -48,19 +52,19 @@ class SpoonBot:
             scope=self.permissions,
             state=state,
         )
-
         # PKCE implementation is required.
         # However, Spoon developers have not implemented PKCE on their OAuth server.
         # There’s nothing I can do about this.
-        # TODO: Store state
         return AuthorizeUrl(url, state)
 
-    def get_accsess_token(self, code: str, state: str):
+    async def get_accsess_token(
+        self, code: str, state: str, state_of_session: str
+    ) -> Token:
         assert code is not None and len(code) > 0, (
             "Error: oauth one time code is none or empty"
         )
         assert state is not None and len(state) > 0, (
             "Error: state is none or empty(By the way, spoon needs to implement PKCE)"
         )
-
-        # TODO: Verify state in db
+        assert state == state_of_session, "Forbidden. Invalid state parameter."
+        return await self.api_client.get_token(code, self.oauth_redirect_url)
