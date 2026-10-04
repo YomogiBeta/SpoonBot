@@ -1,6 +1,7 @@
-import asyncio
+import uuid
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
+from typing import LiteralString
 
 import aiosqlite
 from pydantic import TypeAdapter
@@ -16,37 +17,49 @@ _current_sqlite_conn: ContextVar[aiosqlite.Connection | None] = ContextVar(
 
 class Sqlite3Client(DatabaseClient):
     connection: aiosqlite.Connection
+    db_path: str = "spoonbot.db"
 
-    async def initialize(self):
-        self.connection = aiosqlite.connect("spoonbot.db")
-        async with self.connection as db:
-            await db.execute("PRAGMA journal_mode=WAL;")
+    async def initialize(self) -> None:
+        self.connection = await aiosqlite.connect(self.db_path, isolation_level=None)
+        await self.connection.execute("PRAGMA journal_mode=WAL;")
 
-    def execute_one(
+    async def close(self) -> None:
+        if hasattr(self, "connection") and self.connection:
+            await self.connection.close()
+
+    def _get_connection(self) -> aiosqlite.Connection:
+        in_tx_conn = _current_sqlite_conn.get()
+        if in_tx_conn is not None:
+            return in_tx_conn
+        return self.connection
+
+    async def execute_one(
         self,
         query: str,
-        args: dict[DBValueType] | None = None,
+        args: dict[str, DBValueType] | None = None,
         response_type: type[ResponseGenericType] | None = None,
     ) -> ResponseGenericType:
         if args is None:
             args = {}
-        with self.connection.cursor() as cursor:
-            cursor.execute(query, args)
-            result = cursor.fetchone()
+
+        conn = self._get_connection()
+        async with conn.execute(query, args) as cursor:
+            result = await cursor.fetchone()
             adapter = TypeAdapter(response_type)
             return adapter.validate_python(result)
 
-    def execute_many(
+    async def execute_many(
         self,
         query: str,
-        args: dict[DBValueType] | None = None,
+        args: dict[str, DBValueType] | None = None,
         response_type: type[ResponseGenericType] | None = None,
     ) -> ResponseGenericType:
         if args is None:
             args = {}
-        with self.connection.cursor() as cursor:
-            cursor.execute(query, args)
-            results = cursor.fetchall()
+
+        conn = self._get_connection()
+        async with conn.execute(query, args) as cursor:
+            results = await cursor.fetchall()
             adapter = TypeAdapter(response_type)
             return adapter.validate_python(results)
 
@@ -55,14 +68,14 @@ class Sqlite3Client(DatabaseClient):
         existing_conn = _current_sqlite_conn.get()
 
         if existing_conn is not None:
-            savepoint_name = f"sp_{id(asyncio.current_task())}"
+            savepoint_name = f"sp_{uuid.uuid4().hex}"
             await existing_conn.execute(f"SAVEPOINT {savepoint_name}")
             try:
                 yield existing_conn
                 await existing_conn.execute(f"RELEASE SAVEPOINT {savepoint_name}")
-            except Exception as exception:
+            except Exception:
                 await existing_conn.execute(f"ROLLBACK TO SAVEPOINT {savepoint_name}")
-                raise exception  # noqa: TRY201
+                raise
             return
 
         async with aiosqlite.connect(self.db_path, isolation_level=None) as connection:
@@ -72,9 +85,9 @@ class Sqlite3Client(DatabaseClient):
             try:
                 yield connection
                 await connection.commit()
-            except Exception as exception:
+            except Exception:
                 await connection.rollback()
-                raise exception  # noqa: TRY201
+                raise
             finally:
                 _current_sqlite_conn.reset(token)
 
@@ -84,16 +97,11 @@ class Sqlite3Client(DatabaseClient):
         args: dict[str, DBValueType] | None = None,
     ) -> UpdateResult:
         if args is None:
-            args = ()
+            args = {}
 
-        in_tx_conn = _current_sqlite_conn.get()
+        conn = self._get_connection()
+        async with conn.execute(query, args) as cursor:
+            return UpdateResult(cursor.lastrowid, cursor.rowcount)
 
-        if in_tx_conn is not None:
-            async with in_tx_conn.execute(query, args) as cursor:
-                return UpdateResult(cursor.lastrowid, cursor.rowcount)
-        else:
-            async with aiosqlite.connect(self.db_path) as connection:
-                async with connection.execute(query, args) as cursor:
-                    lastrowid, rowcount = cursor.lastrowid, cursor.rowcount
-                await connection.commit()
-                return UpdateResult(lastrowid, rowcount)
+    def placeholder(self, name: LiteralString) -> str:
+        return f":{name}"

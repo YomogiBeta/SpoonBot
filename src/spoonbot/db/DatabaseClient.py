@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import Self, TypeVar
+from typing import LiteralString, TypeVar
 
-from spoonbot.db.dto import UpdateResult
-from spoonbot.db.dto.MySQLConfig import MySQLConfig
+from spoonbot.db.config.MySQLConfig import MySQLConfig
+from spoonbot.db.dto.UpdateResult import UpdateResult
 from spoonbot.db.mysql.MySQLClient import MySQLClient
 from spoonbot.db.sqlite3.Sqlite3Client import Sqlite3Client
 from spoonbot.db.types import DBValueType
@@ -12,24 +12,29 @@ ResponseGenericType = TypeVar("ResponseGenericType")
 
 class DatabaseClient(ABC):
     @classmethod
-    async def create(cls, config: MySQLConfig | None = None) -> Self:
+    async def create(cls, config: MySQLConfig | None = None) -> "DatabaseClient":
         if config is not None:
             client = Sqlite3Client()
             await client.initialize()
             return client
+        assert config is not None
         client = MySQLClient()
         await client.initialize(config)
         return client
 
     @abstractmethod
-    def initialize(self, *args, **kwargs):
+    async def initialize(self, *args, **kwargs):
+        pass
+
+    @abstractmethod
+    async def close(self) -> None:
         pass
 
     @abstractmethod
     async def execute_one(
         self,
         query: str,
-        args: dict[DBValueType] | None = None,
+        args: dict[str, DBValueType] | None = None,
         response_type: type[ResponseGenericType] | None = None,
     ) -> ResponseGenericType:
         pass
@@ -38,7 +43,7 @@ class DatabaseClient(ABC):
     async def execute_many(
         self,
         query: str,
-        args: dict[DBValueType] | None = None,
+        args: dict[str, DBValueType] | None = None,
         response_type: type[ResponseGenericType] | None = None,
     ) -> ResponseGenericType:
         pass
@@ -53,4 +58,8 @@ class DatabaseClient(ABC):
         query: str,
         args: dict[str, DBValueType] | None = None,
     ) -> UpdateResult:
+        pass
+
+    @abstractmethod
+    def placeholder(self, name: LiteralString) -> str:
         pass

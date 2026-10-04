@@ -4,10 +4,11 @@ import secrets
 from oauthlib.oauth2 import WebApplicationClient
 
 from spoonbot.config.ConstantsConfig import ConstantsConfig
+from spoonbot.constants import SPACE
 from spoonbot.dto.AuthorizeUrl import AuthorizeUrl
 from spoonbot.enums.Country import Country
 from spoonbot.enums.SpoonPermission import SpoonPermission
-from spoonbot.httpclient.dto.Token import Token
+from spoonbot.httpclient.dto.Token import TokenResponse
 from spoonbot.httpclient.SpoonApiClient import SpoonApiClient
 
 STATE_SIZE = 24
@@ -26,13 +27,13 @@ class SpoonBot:
         self.spoon_client_id = os.getenv("SPOON_CLIENT_ID", spoon_client_id)
         self.spoon_client_secret = os.getenv("SPOON_CLIENR_SECRET", spoon_client_secret)
         self.oauth_redirect_url = os.getenv(
-            "SPOON_OAUTH_REDIRECT_URL", oauth_redirect_url
+            "SPOON_OAUTH_REDIRECT_URL", oauth_redirect_url or ""
         )
         self.target_country = Country(os.getenv("SPOON_BOT_COUNTRY", country))
 
         assert self.spoon_client_id is not None, "Required SPOON_CLIENT_ID"
         assert self.spoon_client_secret is not None, "Required SPOON_CLIENR_SECRET"
-        assert self.oauth_redirect_url is not None, "Required SPOON_OAUTH_REDIRECT_URL"
+        assert len(self.oauth_redirect_url) > 0, "Required SPOON_OAUTH_REDIRECT_URL"
         assert self.target_country is not None, "Required SPOON_BOT_COUNTRY"
 
         self.constants = ConstantsConfig.create(self.target_country)
@@ -49,7 +50,7 @@ class SpoonBot:
         url, _, _ = self.oauth_client.prepare_authorization_request(
             self.constants.oauth_authorize_base_url,
             redirect_url=self.oauth_redirect_url,
-            scope=self.permissions,
+            scope=SPACE.join(self.permissions),
             state=state,
         )
         # PKCE implementation is required.
@@ -59,7 +60,7 @@ class SpoonBot:
 
     async def get_accsess_token(
         self, code: str, state: str, state_of_session: str
-    ) -> Token:
+    ) -> TokenResponse:
         assert code is not None and len(code) > 0, (
             "Error: oauth one time code is none or empty"
         )

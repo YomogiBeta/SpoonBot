@@ -14,6 +14,7 @@ dependencies = [
     "aiohttp-sse-client>=0.2.1",
     "aiosqlite>=0.22.1",
     "aiomysql>=0.3.2",
+    "uuid-utils>=1.0.0",
 ]
 
 [project.optional-dependencies]

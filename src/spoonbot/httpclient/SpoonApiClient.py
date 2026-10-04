@@ -1,7 +1,7 @@
 import base64
 
 from spoonbot.httpclient.APIClient import APIClient
-from spoonbot.httpclient.dto.Token import Token
+from spoonbot.httpclient.dto.Token import TokenResponse
 
 
 class SpoonApiClient(APIClient):
@@ -12,7 +12,7 @@ class SpoonApiClient(APIClient):
         self.client_id = client_id
         self.client_secret = client_secret
 
-    async def get_token(self, code: str, redirect_uri: str) -> Token:
+    async def get_token(self, code: str, redirect_uri: str) -> TokenResponse:
         return await self.post(
             endpoint="oauth/token",
             body={
@@ -21,7 +21,7 @@ class SpoonApiClient(APIClient):
                 "redirect_uri": redirect_uri,
             },
             headers={"Authorization": self._authorize_token()},
-            response_type=Token,
+            response_type=TokenResponse,
         )
 
     def _authorize_token(self) -> str:
