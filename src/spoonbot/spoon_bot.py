@@ -1,14 +1,20 @@
 import os
 import secrets
+import time
 
+import uuid_utils as uuid
 from oauthlib.oauth2 import WebApplicationClient
 
 from spoonbot.config.ConstantsConfig import ConstantsConfig
-from spoonbot.constants import SPACE
+from spoonbot.constants import DEFAULT_REFRESH_TOKEN_EXPIRES_IN, SPACE
+from spoonbot.db.config.MySQLConfig import MySQLConfig
+from spoonbot.db.dto.TokenDataDto import TokenDataDto
+from spoonbot.db.SpoonUserRepository import SpoonUserRepository
 from spoonbot.dto.AuthorizeUrl import AuthorizeUrl
+from spoonbot.dto.SpoonAuthorization import SpoonAuthorization
 from spoonbot.enums.Country import Country
 from spoonbot.enums.SpoonPermission import SpoonPermission
-from spoonbot.httpclient.dto.Token import TokenResponse
+from spoonbot.enums.TokenStatus import TokenStatus
 from spoonbot.httpclient.SpoonApiClient import SpoonApiClient
 
 STATE_SIZE = 24
@@ -22,6 +28,7 @@ class SpoonBot:
         spoon_client_secret: str | None,
         oauth_redirect_url: str | None,
         country: Country | None,
+        mysql_config: MySQLConfig | None,
     ):
         self.permissions = permissions or set()
         self.spoon_client_id = os.getenv("SPOON_CLIENT_ID", spoon_client_id)
@@ -40,6 +47,8 @@ class SpoonBot:
         self.oauth_client = WebApplicationClient(self.spoon_client_id)
         self.api_client = await SpoonApiClient.create(self.constants.api_base_url)
         self.api_client.initialize(self.spoon_client_id, self.spoon_client_secret)
+        self.spoon_user_repository = SpoonUserRepository()
+        await self.spoon_user_repository.initialize(mysql_config)
 
     def user_authorize_url(self) -> AuthorizeUrl:
         assert self.spoon_client_id is not None, "Required SPOON_CLIENT_ID"
@@ -58,9 +67,9 @@ class SpoonBot:
         # There’s nothing I can do about this.
         return AuthorizeUrl(url, state)
 
-    async def get_accsess_token(
+    async def get_authorization(
         self, code: str, state: str, state_of_session: str
-    ) -> TokenResponse:
+    ) -> SpoonAuthorization:
         assert code is not None and len(code) > 0, (
             "Error: oauth one time code is none or empty"
         )
@@ -68,4 +77,28 @@ class SpoonBot:
             "Error: state is none or empty(By the way, spoon needs to implement PKCE)"
         )
         assert state == state_of_session, "Forbidden. Invalid state parameter."
-        return await self.api_client.get_token(code, self.oauth_redirect_url)
+        token_respons = await self.api_client.get_token(code, self.oauth_redirect_url)
+        epoch_second = int(time.time())
+        return SpoonAuthorization(
+            id=uuid.uuid7(),
+            access_token=token_respons.access_token,
+            token_type=token_respons.token_type,
+            expire_at=epoch_second + token_respons.expires_in,
+            refresh_expire_at=epoch_second + DEFAULT_REFRESH_TOKEN_EXPIRES_IN,
+            refresh_token=token_respons.refresh_token,
+            scope=token_respons.scope,
+            token_status=TokenStatus.DEFAULT,
+        )
+
+    async def save_authorization(self, authorization: SpoonAuthorization) -> bool:
+        authorization_dto = TokenDataDto(
+            id=authorization.id.bytes,
+            access_token=authorization.access_token,
+            token_type=authorization.token_type,
+            expire_at=authorization.expire_at,
+            refresh_expire_at=authorization.refresh_expire_at,
+            refresh_token=authorization.refresh_token,
+            scope=authorization.scope,
+            token_status=authorization.token_status,
+        )
+        return await self.spoon_user_repository.insert_token(authorization_dto)

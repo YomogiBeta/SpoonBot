@@ -1,7 +1,7 @@
 import base64
 
 from spoonbot.httpclient.APIClient import APIClient
-from spoonbot.httpclient.dto.Token import TokenResponse
+from spoonbot.httpclient.dto.TokenResponse import TokenResponse
 
 
 class SpoonApiClient(APIClient):

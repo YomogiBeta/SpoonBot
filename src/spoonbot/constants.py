@@ -5,3 +5,5 @@ API_BASE_URL_KR = "https://kr-openapi.spooncast.net/v1/"
 API_BASE_URL_JP = "https://jp-openapi.spooncast.net/v1/"
 
 SPACE = " "
+# https://developers.spooncast.net/docs/en/api-reference/tokens
+DEFAULT_REFRESH_TOKEN_EXPIRES_IN = 60 * 60 * 24 * 30  # 30 days
