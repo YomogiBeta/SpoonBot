@@ -2,23 +2,28 @@ from abc import ABC
 from typing import Any, Self, TypeVar
 
 import aiohttp
-from aiohttp import ClientSession
+from aiohttp import ClientSession, ClientTimeout
+from aiohttp_sse_client2 import client as sse_client
 from pydantic import TypeAdapter
 
 ResponseGenericType = TypeVar("ResponseGenericType")
 
 
 class APIClient(ABC):
-    def __init__(self, session: ClientSession):
+    _session: ClientSession
+    _base_url: str
+
+    def __init__(self, session: ClientSession, base_url: str):
         self._session = session
+        self._base_url = base_url.rstrip("/") + "/"
 
     @classmethod
     async def create(cls, base_url: str) -> Self:
         connector = aiohttp.TCPConnector()
         session = aiohttp.ClientSession(base_url=base_url, connector=connector)
-        return cls(session)
+        return cls(session, base_url)
 
-    async def get(
+    async def _get(
         self,
         endpoint: str,
         queries: dict[str, Any],
@@ -33,7 +38,7 @@ class APIClient(ABC):
             adapter = TypeAdapter(response_type)
             return adapter.validate_python(raw_json)
 
-    async def post(
+    async def _post(
         self,
         endpoint: str,
         body: Any,
@@ -45,3 +50,16 @@ class APIClient(ABC):
             raw_json = await response.json()
             adapter = TypeAdapter(response_type)
             return adapter.validate_python(raw_json)
+
+    def _sse_stream(
+        self,
+        endpoint: str,
+        headers: dict[str, str] | None = None,
+    ):
+        timeout = ClientTimeout(total=None)
+        return sse_client.EventSource(
+            f"{self._base_url}{endpoint}",
+            session=self._session,
+            headers=headers,
+            timeout=timeout,
+        )

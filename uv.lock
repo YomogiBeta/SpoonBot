@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.13"
 
 [[package]]
@@ -93,8 +93,8 @@ wheels = [
 ]
 
 [[package]]
-name = "aiohttp-sse-client"
-version = "0.2.1"
+name = "aiohttp-sse-client2"
+version = "0.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -102,9 +102,9 @@ dependencies = [
     { name = "multidict" },
     { name = "yarl" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/71/c3/4825c5f37909a70c8018924b3d521847dd7acf1fce7e1054574bafed2271/aiohttp-sse-client-0.2.1.tar.gz", hash = "sha256:5004e29271624af586158dc7166cb0687a7a5997aab5b808f4b53400e1b72e3b", size = 13698, upload-time = "2021-02-27T10:00:40.329Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/63/e5/d02277f6b7b7529ff67a476400a81f794410d068c5699750163a903b83e6/aiohttp-sse-client2-0.3.0.tar.gz", hash = "sha256:5cdd33fc0d034aea339e190726bb918bc61fd3424c7ab528d07b1d60790a979f", size = 15027, upload-time = "2023-02-07T11:20:43.633Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/25/c9/ad514e70a549db22e118f0366c0bb38c5a90cb407978cb6c3d1482760889/aiohttp_sse_client-0.2.1-py2.py3-none-any.whl", hash = "sha256:42c81ee9213e9fc8bc412b063bac3a813e02e75250c4c8049222234d41c9b024", size = 6957, upload-time = "2021-02-27T10:00:39.188Z" },
+    { url = "https://files.pythonhosted.org/packages/b9/7b/6bd2f3767df21e44e77356e750753b7eab742586182deafe6d90363a9371/aiohttp_sse_client2-0.3.0-py2.py3-none-any.whl", hash = "sha256:1921bfe488667bf70651a38f54363fdd0c5f0d7021010e632bf80754c6850b25", size = 7322, upload-time = "2023-02-07T11:20:41.953Z" },
 ]
 
 [[package]]
@@ -277,6 +277,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f5/08/8eea9d4b8302028f3abb2c0813953f7aec26d33b7a8960ed760e65ff29fa/idna-3.20.tar.gz", hash = "sha256:a7db850025b95ded1eae8a46181a1a6c56c92c96f0e2b005d9ff8dc0210cab44", size = 216463, upload-time = "2026-09-17T14:11:04.752Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/58/a2/bb081bab032533a855d44de1d56f8e8426114ff1ba5d1f07a438a0a654f8/idna-3.20-py3-none-any.whl", hash = "sha256:ab7ae7122974553370f0bdb919e1a960b2cd1bc1ef0276416d896db81c14582c", size = 69583, upload-time = "2026-09-17T14:11:03.168Z" },
+]
+
+[[package]]
+name = "itsdangerous"
+version = "2.2.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/9c/cb/8ac0172223afbccb63986cc25049b154ecfb5e85932587206f42317be31d/itsdangerous-2.2.0.tar.gz", hash = "sha256:e0050c0b7da1eea53ffaf149c0cfbb5c6e2e2b69c4bef22c81fa6eb73e5f6173", size = 54410, upload-time = "2024-04-16T21:28:15.614Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/04/96/92447566d16df59b2a776c0fb82dbc4d9e07cd95062562af01e408583fc4/itsdangerous-2.2.0-py3-none-any.whl", hash = "sha256:c6242fc49e35958c8b15141343aa660db5fc54d4f13a1db01a3f5891b98700ef", size = 16234, upload-time = "2024-04-16T21:28:14.499Z" },
 ]
 
 [[package]]
@@ -623,9 +632,10 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
-    { name = "aiohttp-sse-client" },
+    { name = "aiohttp-sse-client2" },
     { name = "aiomysql" },
     { name = "aiosqlite" },
+    { name = "itsdangerous" },
     { name = "oauthlib" },
     { name = "pydantic" },
     { name = "uuid-utils" },
@@ -644,10 +654,11 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.14.3" },
-    { name = "aiohttp-sse-client", specifier = ">=0.2.1" },
+    { name = "aiohttp-sse-client2", specifier = ">=0.3.0" },
     { name = "aiomysql", specifier = ">=0.3.2" },
     { name = "aiosqlite", specifier = ">=0.22.1" },
     { name = "fastapi", marker = "extra == 'fastapi'", specifier = ">=0.142.2" },
+    { name = "itsdangerous", specifier = ">=2.2.0" },
     { name = "oauthlib", specifier = ">=4.0.0" },
     { name = "pydantic", specifier = ">=2.13.5" },
     { name = "uuid-utils", specifier = ">=1.0.0" },

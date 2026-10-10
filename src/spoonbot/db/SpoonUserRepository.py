@@ -28,7 +28,8 @@ class SpoonUserRepository:
                   created_at BIGINT NOT NULL, 
                   updated_at BIGINT NOT NULL,
                   
-                  INDEX idx_expire_at (expire_at)
+                  INDEX idx_expire_at (expire_at),
+                  INDEX idx_expire_at (refresh_expire_at)
               )
             """
         )
