@@ -1,8 +1,10 @@
+import asyncio
 import os
 import secrets
 import time
 
 import uuid_utils as uuid
+from aiohttp import web
 from itsdangerous import TimestampSigner
 from oauthlib.oauth2 import WebApplicationClient
 
@@ -17,6 +19,7 @@ from spoonbot.enums.Country import Country
 from spoonbot.enums.SpoonPermission import SpoonPermission
 from spoonbot.enums.TokenStatus import TokenStatus
 from spoonbot.httpclient.SpoonApiClient import SpoonApiClient
+from spoonbot.manager.SpoonEventStreamManager import SpoonEventStreamManager
 
 STATE_SIZE = 24
 OAUTH_STATE_SIGNE_SALT = "oauth-state-verification"
@@ -61,6 +64,14 @@ class SpoonBot:
         self.signer = TimestampSigner(
             self.session_secret_key, salt=OAUTH_STATE_SIGNE_SALT
         )
+
+        self.web_application = web.Application()
+        self.spoon_event_stream_manager = SpoonEventStreamManager(
+            self.web_application, self.api_client
+        )
+        self.web_application.on_startup.append(self.startup_function())
+        self.web_application.on_cleanup.append(self.cleanup_function())
+        # web.run_app(app, host="127.0.0.1", port=8080)
 
     def user_authorize_url(self) -> AuthorizeUrl:
         assert self.spoon_client_id is not None, "Required SPOON_CLIENT_ID"
@@ -118,3 +129,21 @@ class SpoonBot:
             token_status=authorization.token_status,
         )
         return await self.spoon_user_repository.insert_token(authorization_dto)
+
+    def startup_function(self):
+        async def on_startup(web_application: web.Application):
+            web_application["sse_manager"] = self.spoon_event_stream_manager
+
+        return on_startup
+
+    def cleanup_function(self):
+        async def on_cleanup(web_application: web.Application):
+            manager: SpoonEventStreamManager = web_application["sse_manager"]
+            for task in list(manager.tasks.values()):
+                task.cancel()
+            if manager.tasks:
+                await asyncio.gather(*manager.tasks.values(), return_exceptions=True)
+            await self.api_client.close()
+            await self.spoon_user_repository.close()
+
+        return on_cleanup

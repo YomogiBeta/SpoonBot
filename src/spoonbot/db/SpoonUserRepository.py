@@ -12,6 +12,9 @@ class SpoonUserRepository:
         self.database_client = await DatabaseClient.create(config)
         await self._create_table()
 
+    async def close(self):
+        await self.database_client.close()
+
     async def _create_table(self):
         await self.database_client.execute_cud(
             query="""-- sql

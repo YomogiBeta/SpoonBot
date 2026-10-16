@@ -23,6 +23,9 @@ class APIClient(ABC):
         session = aiohttp.ClientSession(base_url=base_url, connector=connector)
         return cls(session, base_url)
 
+    async def close(self):
+        await self._session.close()
+
     async def _get(
         self,
         endpoint: str,
