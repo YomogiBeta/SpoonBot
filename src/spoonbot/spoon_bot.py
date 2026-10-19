@@ -10,6 +10,7 @@ from oauthlib.oauth2 import WebApplicationClient
 
 from spoonbot.config.ConstantsConfig import ConstantsConfig
 from spoonbot.constants import DEFAULT_REFRESH_TOKEN_EXPIRES_IN, SPACE
+from spoonbot.controller.SpoonOAuthController import SpoonOAuthController
 from spoonbot.db.config.MySQLConfig import MySQLConfig
 from spoonbot.db.dto.TokenDataDto import TokenDataDto
 from spoonbot.db.SpoonUserRepository import SpoonUserRepository
@@ -71,6 +72,9 @@ class SpoonBot:
         )
         self.web_application.on_startup.append(self.startup_function())
         self.web_application.on_cleanup.append(self.cleanup_function())
+
+        self.spoon_oauth_controller = SpoonOAuthController(self)
+        self.web_application.add_routes(self.spoon_oauth_controller.get_route())
         # web.run_app(app, host="127.0.0.1", port=8080)
 
     def user_authorize_url(self) -> AuthorizeUrl:
