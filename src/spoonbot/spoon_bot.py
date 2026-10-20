@@ -1,4 +1,6 @@
 import asyncio
+import hashlib
+import hmac
 import os
 import secrets
 import time
@@ -12,7 +14,7 @@ from spoonbot.config.ConstantsConfig import ConstantsConfig
 from spoonbot.constants import DEFAULT_REFRESH_TOKEN_EXPIRES_IN, SPACE
 from spoonbot.controller.SpoonOAuthController import SpoonOAuthController
 from spoonbot.db.config.MySQLConfig import MySQLConfig
-from spoonbot.db.dto.TokenDataDto import TokenDataDto
+from spoonbot.db.dto.TokenDataDto import SessionDataDto, TokenDataDto
 from spoonbot.db.SpoonUserRepository import SpoonUserRepository
 from spoonbot.dto.AuthorizeUrl import AuthorizeUrl
 from spoonbot.dto.SpoonAuthorization import SpoonAuthorization
@@ -32,7 +34,7 @@ class SpoonBot:
         permissions: set[SpoonPermission] | None,
         spoon_client_id: str | None,
         spoon_client_secret: str | None,
-        session_secret_key: str | None,
+        secret_key: str | None,
         oauth_redirect_url: str | None,
         country: Country | None,
         mysql_config: MySQLConfig | None,
@@ -40,7 +42,7 @@ class SpoonBot:
         self.permissions = permissions or set()
         self.spoon_client_id = os.getenv("SPOON_CLIENT_ID", spoon_client_id)
         self.spoon_client_secret = os.getenv("SPOON_CLIENR_SECRET", spoon_client_secret)
-        self.session_secret_key = os.getenv("SESSION_SECRET_KEY", session_secret_key)
+        self.secret_key = os.getenv("SPOON_SECRET_KEY", secret_key)
         self.oauth_redirect_url = os.getenv(
             "SPOON_OAUTH_REDIRECT_URL", oauth_redirect_url or ""
         )
@@ -48,9 +50,9 @@ class SpoonBot:
 
         assert self.spoon_client_id is not None, "Required SPOON_CLIENT_ID"
         assert self.spoon_client_secret is not None, "Required SPOON_CLIENR_SECRET"
-        assert self.session_secret_key is not None, "Required SESSION_SECRET_KEY"
-        assert len(self.session_secret_key) > 64, (
-            "SESSION_SECRET_KEY must be at least 64 characters long."
+        assert self.secret_key is not None, "Required SPOON_SECRET_KEY"
+        assert len(self.secret_key) > 64, (
+            "SPOON_SECRET_KEY must be at least 64 characters long."
         )
         assert len(self.oauth_redirect_url) > 0, "Required SPOON_OAUTH_REDIRECT_URL"
         assert self.target_country is not None, "Required SPOON_BOT_COUNTRY"
@@ -62,9 +64,7 @@ class SpoonBot:
         self.spoon_user_repository = SpoonUserRepository()
         await self.spoon_user_repository.initialize(mysql_config)
 
-        self.signer = TimestampSigner(
-            self.session_secret_key, salt=OAUTH_STATE_SIGNE_SALT
-        )
+        self.signer = TimestampSigner(self.secret_key, salt=OAUTH_STATE_SIGNE_SALT)
 
         self.web_application = web.Application()
         self.spoon_event_stream_manager = SpoonEventStreamManager(
@@ -133,6 +133,43 @@ class SpoonBot:
             token_status=authorization.token_status,
         )
         return await self.spoon_user_repository.insert_token(authorization_dto)
+
+    async def save_session(self, authorization: SpoonAuthorization) -> str | None:
+        session_id = secrets.token_urlsafe(32)
+
+        session_dto = SessionDataDto(
+            id=uuid.uuid7().bytes,
+            authorization_spoon_user_id=authorization.id.bytes,
+            encoded_session_id=self._hmac_sha256(session_id),
+        )
+
+        succsess_session_inserted = await self.spoon_user_repository.insert_session(
+            session_dto
+        )
+        if not succsess_session_inserted:
+            return None
+        return session_id
+
+    async def get_session(self, session_id: str) -> SessionDataDto:
+        return await self.spoon_user_repository.get_session_data(
+            self._hmac_sha256(session_id)
+        )
+
+    async def regenerate_csrf_token(self, session_id: str) -> str:
+        csrf_token = secrets.token_urlsafe(32)
+        result = await self.spoon_user_repository.update_csrf_token(
+            self._hmac_sha256(session_id), csrf_token.encode("utg-8")
+        )
+        assert result
+        return csrf_token
+
+    def _hmac_sha256(self, text: str):
+        assert self.secret_key is not None
+        return hmac.new(
+            self.secret_key.encode("utf-8"),
+            text.encode("utf-8"),
+            hashlib.sha256,
+        ).digest()
 
     def startup_function(self):
         async def on_startup(web_application: web.Application):

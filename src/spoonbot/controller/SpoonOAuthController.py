@@ -46,9 +46,20 @@ class SpoonOAuthController:
                 code, returned_state, signed_state
             )
             await self.spoon_bot.save_authorization(auth)
+            session_id = await self.spoon_bot.save_session(auth)
+            if session_id is None:
+                return Response(text="Sessionの作成に失敗しました", status=500)
 
             response = Response(text="Bot連携に成功しました。")
             response.del_cookie(SIGNED_STATE_KEY)
+            response.set_cookie(
+                name="session_id",
+                value=session_id,
+                max_age=60 * 60 * 24 * 30,  # 30日有効
+                httponly=True,
+                samesite="Lax",
+                secure=True,
+            )
 
             return response
 
