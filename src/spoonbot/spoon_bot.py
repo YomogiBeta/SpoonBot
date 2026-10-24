@@ -11,7 +11,12 @@ from itsdangerous import TimestampSigner
 from oauthlib.oauth2 import WebApplicationClient
 
 from spoonbot.config.ConstantsConfig import ConstantsConfig
-from spoonbot.constants import DEFAULT_REFRESH_TOKEN_EXPIRES_IN, SPACE
+from spoonbot.constants import (
+    DEFAULT_REFRESH_TOKEN_EXPIRES_IN,
+    DEFAULT_SESSION_EXPIRES_IN,
+    SPACE,
+)
+from spoonbot.controller.SpoonBotController import SpoonBotController
 from spoonbot.controller.SpoonOAuthController import SpoonOAuthController
 from spoonbot.db.config.MySQLConfig import MySQLConfig
 from spoonbot.db.dto.TokenDataDto import SessionDataDto, TokenDataDto
@@ -40,6 +45,9 @@ class SpoonBot:
         mysql_config: MySQLConfig | None,
     ):
         self.permissions = permissions or set()
+        self.permissions.add(SpoonPermission.READ_ME)
+        # EventStream を使うためには、streamの権限が1つ以上必要なため、必ず likeを要求
+        self.permissions.add(SpoonPermission.EVENTS_LIKE)
         self.spoon_client_id = os.getenv("SPOON_CLIENT_ID", spoon_client_id)
         self.spoon_client_secret = os.getenv("SPOON_CLIENR_SECRET", spoon_client_secret)
         self.secret_key = os.getenv("SPOON_SECRET_KEY", secret_key)
@@ -68,14 +76,19 @@ class SpoonBot:
 
         self.web_application = web.Application()
         self.spoon_event_stream_manager = SpoonEventStreamManager(
-            self.web_application, self.api_client
+            self.web_application, self.api_client, self
         )
         self.web_application.on_startup.append(self.startup_function())
         self.web_application.on_cleanup.append(self.cleanup_function())
 
         self.spoon_oauth_controller = SpoonOAuthController(self)
-        self.web_application.add_routes(self.spoon_oauth_controller.get_route())
-        # web.run_app(app, host="127.0.0.1", port=8080)
+        self.spoon_bot_controller = SpoonBotController(self)
+        self.web_application.add_routes(
+            [
+                *self.spoon_oauth_controller.get_route(),
+                *self.spoon_bot_controller.get_route(),
+            ]
+        )
 
     def user_authorize_url(self) -> AuthorizeUrl:
         assert self.spoon_client_id is not None, "Required SPOON_CLIENT_ID"
@@ -109,9 +122,12 @@ class SpoonBot:
 
         assert state == state_of_session, "Forbidden. Invalid state parameter."
         token_respons = await self.api_client.get_token(code, self.oauth_redirect_url)
+        user_data = await self.api_client.get_token_owner_user(
+            token_respons.access_token
+        )
         epoch_second = int(time.time())
         return SpoonAuthorization(
-            id=uuid.uuid7(),
+            id=user_data.userId,
             access_token=token_respons.access_token,
             token_type=token_respons.token_type,
             expire_at=epoch_second + token_respons.expires_in,
@@ -121,9 +137,51 @@ class SpoonBot:
             token_status=TokenStatus.DEFAULT,
         )
 
-    async def save_authorization(self, authorization: SpoonAuthorization) -> bool:
+    async def get_authorization_by_refresh_token(
+        self, authorization: SpoonAuthorization
+    ) -> SpoonAuthorization:
+        assert not authorization.end_refresh_token(), "UnAuthorization"
+        token_respons = await self.api_client.refresh_token(authorization.refresh_token)
+        epoch_second = int(time.time())
+        return SpoonAuthorization(
+            id=authorization.id,
+            access_token=token_respons.access_token,
+            token_type=token_respons.token_type,
+            expire_at=epoch_second + token_respons.expires_in,
+            refresh_expire_at=epoch_second + DEFAULT_REFRESH_TOKEN_EXPIRES_IN,
+            refresh_token=token_respons.refresh_token,
+            scope=token_respons.scope,
+            token_status=authorization.token_status,
+        )
+
+    async def start_stream_by_session(self, session_id: str, x_csrf_token: str):
+        encoded_session_id = self._hmac_sha256(session_id)
+        result = await self.spoon_user_repository.get_token_data_by_session_id(
+            encoded_session_id
+        )
+        assert result is not None, "UnAuthorization"
+        assert result.csrf_token is not None, "Denied. CRSF token don't match"
+        assert result.csrf_token.decode("utf-8") == x_csrf_token, (
+            "Denied. CRSF token don't match"
+        )
+        authorization = SpoonAuthorization(
+            id=result.id,
+            access_token=result.access_token,
+            token_type=result.token_type,
+            expire_at=result.expire_at,
+            refresh_expire_at=result.refresh_expire_at,
+            refresh_token=result.refresh_token,
+            scope=result.scope,
+            token_status=TokenStatus(result.token_status),
+        )
+        assert not authorization.end_refresh_token(), "UnAuthorization"
+        await self.spoon_event_stream_manager.add_connection(authorization)
+
+    async def save_authorization(
+        self, authorization: SpoonAuthorization, force_refresh: bool = False
+    ) -> bool:
         authorization_dto = TokenDataDto(
-            id=authorization.id.bytes,
+            id=authorization.id,
             access_token=authorization.access_token,
             token_type=authorization.token_type,
             expire_at=authorization.expire_at,
@@ -132,15 +190,25 @@ class SpoonBot:
             scope=authorization.scope,
             token_status=authorization.token_status,
         )
+        result = (
+            await self.spoon_user_repository.get_token_data(authorization.id)
+            if not force_refresh
+            else None
+        )
+        if result is not None or force_refresh:
+            return await self.spoon_user_repository.update_token(authorization_dto)
         return await self.spoon_user_repository.insert_token(authorization_dto)
 
     async def save_session(self, authorization: SpoonAuthorization) -> str | None:
         session_id = secrets.token_urlsafe(32)
 
+        expires_at = int(time.time()) + DEFAULT_SESSION_EXPIRES_IN
+
         session_dto = SessionDataDto(
             id=uuid.uuid7().bytes,
-            authorization_spoon_user_id=authorization.id.bytes,
+            authorization_spoon_user_id=authorization.id,
             encoded_session_id=self._hmac_sha256(session_id),
+            expires_at=expires_at,
         )
 
         succsess_session_inserted = await self.spoon_user_repository.insert_session(
@@ -150,7 +218,7 @@ class SpoonBot:
             return None
         return session_id
 
-    async def get_session(self, session_id: str) -> SessionDataDto:
+    async def get_session(self, session_id: str) -> SessionDataDto | None:
         return await self.spoon_user_repository.get_session_data(
             self._hmac_sha256(session_id)
         )
@@ -188,3 +256,6 @@ class SpoonBot:
             await self.spoon_user_repository.close()
 
         return on_cleanup
+
+    def start(self):
+        web.run_app(self.web_application, host="127.0.0.1", port=8080)

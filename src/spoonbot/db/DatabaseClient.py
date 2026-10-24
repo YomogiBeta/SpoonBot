@@ -36,7 +36,7 @@ class DatabaseClient(ABC):
         query: str,
         args: dict[str, DBValueType] | None = None,
         response_type: type[ResponseGenericType] | None = None,
-    ) -> ResponseGenericType:
+    ) -> ResponseGenericType | None:
         pass
 
     @abstractmethod
@@ -45,7 +45,7 @@ class DatabaseClient(ABC):
         query: str,
         args: dict[str, DBValueType] | None = None,
         response_type: type[ResponseGenericType] | None = None,
-    ) -> ResponseGenericType:
+    ) -> ResponseGenericType | None:
         pass
 
     @abstractmethod

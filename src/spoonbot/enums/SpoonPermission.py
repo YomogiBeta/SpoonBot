@@ -2,6 +2,7 @@ from enum import StrEnum
 
 
 class SpoonPermission(StrEnum):
+    READ_ME = "me.read"
     LIVE_READ = "live.read"
     LISTENERS_READ = "listeners.read"
     FANS_READ = "fans.read"

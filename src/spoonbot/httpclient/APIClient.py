@@ -29,8 +29,8 @@ class APIClient(ABC):
     async def _get(
         self,
         endpoint: str,
-        queries: dict[str, Any],
         response_type: type[ResponseGenericType],
+        queries: dict[str, Any] | None = None,
         headers: dict[str, str] | None = None,
     ) -> ResponseGenericType:
         async with self._session.get(
@@ -65,4 +65,5 @@ class APIClient(ABC):
             session=self._session,
             headers=headers,
             timeout=timeout,
+            raise_for_status=True,
         )

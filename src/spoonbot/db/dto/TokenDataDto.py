@@ -2,7 +2,7 @@ from pydantic import BaseModel
 
 
 class TokenDataDto(BaseModel):
-    id: bytes
+    id: str
     access_token: str
     token_type: str
     expire_at: int
@@ -17,6 +17,7 @@ class TokenDataDto(BaseModel):
 
 class SessionDataDto(BaseModel):
     id: bytes
-    authorization_spoon_user_id: bytes
+    authorization_spoon_user_id: str
     encoded_session_id: bytes
     csrf_token: bytes | None = None
+    expires_at: int

@@ -3,6 +3,7 @@ from aiohttp.web_request import Request
 from aiohttp.web_response import Response
 from aiohttp.web_routedef import RouteTableDef
 
+from spoonbot.constants import DEFAULT_SESSION_EXPIRES_IN
 from spoonbot.spoon_bot import SpoonBot
 
 routes = RouteTableDef()
@@ -55,7 +56,7 @@ class SpoonOAuthController:
             response.set_cookie(
                 name="session_id",
                 value=session_id,
-                max_age=60 * 60 * 24 * 30,  # 30日有効
+                max_age=DEFAULT_SESSION_EXPIRES_IN,
                 httponly=True,
                 samesite="Lax",
                 secure=True,

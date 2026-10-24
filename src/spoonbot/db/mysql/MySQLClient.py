@@ -61,7 +61,7 @@ class MySQLClient(DatabaseClient):
         query: str,
         args: dict[str, DBValueType] | None = None,
         response_type: type[ResponseGenericType] | None = None,
-    ) -> ResponseGenericType:
+    ) -> ResponseGenericType | None:
         if args is None:
             args = {}
 
@@ -69,6 +69,8 @@ class MySQLClient(DatabaseClient):
             async with connection.cursor() as cursor:
                 await cursor.execute(query, args)
                 result = await cursor.fetchone()
+                if result is None:
+                    return None
                 adapter = TypeAdapter(response_type)
                 return adapter.validate_python(result)
 
@@ -77,7 +79,7 @@ class MySQLClient(DatabaseClient):
         query: str,
         args: dict[str, DBValueType] | None = None,
         response_type: type[ResponseGenericType] | None = None,
-    ) -> ResponseGenericType:
+    ) -> ResponseGenericType | None:
         if args is None:
             args = {}
 
@@ -85,6 +87,8 @@ class MySQLClient(DatabaseClient):
             async with connection.cursor() as cursor:
                 await cursor.execute(query, args)
                 results = await cursor.fetchall()
+                if results is None:
+                    return None
                 adapter = TypeAdapter(response_type)
                 return adapter.validate_python(results)
 

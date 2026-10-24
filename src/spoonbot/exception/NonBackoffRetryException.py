@@ -1,0 +1,2 @@
+class NonBackoffRetryException(Exception):
+    pass

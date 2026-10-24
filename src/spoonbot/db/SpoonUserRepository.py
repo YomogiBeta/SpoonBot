@@ -19,8 +19,7 @@ class SpoonUserRepository:
         await self.database_client.execute_cud(
             query="""-- sql
               CREATE TABLE IF NOT EXISTS authorization_spoon_users (
-                  id BINARY(16) PRIMARY KEY,
-                  name VARCHAR(128) NOT NULL,
+                  id VARCHAR(256) PRIMARY KEY,
                   access_token VARCHAR(256) NOT NULL,
                   refresh_token VARCHAR(256) NOT NULL,
                   expire_at BIGINT,
@@ -45,6 +44,7 @@ class SpoonUserRepository:
                   encoded_session_id BINARY(32) NOT NULL,
                   csrf_token BINARY(32),
                   
+                  expires_at BIGINT NOT NULL, 
                   created_at BIGINT NOT NULL, 
                   updated_at BIGINT NOT NULL,
                   FOREIGN KEY (authorization_spoon_user_id) 
@@ -86,6 +86,71 @@ class SpoonUserRepository:
         )
         return result.inserted_count == 1
 
+    async def update_token(self, token: TokenDataDto):
+        epoch_seconds = int(time.time())
+        result = await self.database_client.execute_cud(
+            query=f"""-- sql
+                    UPDATE authorization_spoon_users
+                    SET access_token = {self.database_client.placeholder("access_token")},
+                    refresh_token =  {self.database_client.placeholder("refresh_token")},
+                    expire_at =  {self.database_client.placeholder("expire_at")},
+                    refresh_expire_at =  {self.database_client.placeholder("expire_at")},
+                    scope = {self.database_client.placeholder("scope")},
+                    token_type = {self.database_client.placeholder("scope")},
+                    updated_at = {self.database_client.placeholder("updated_at")}
+                    WHERE id = {self.database_client.placeholder("id")},
+                    LIMIT 1
+                    """,  # noqa: E501
+            args=token.model_dump() | {"updated_at": epoch_seconds},
+        )
+        return result.updated_count == 1
+
+    async def get_token_data(self, id: str) -> TokenDataDto | None:
+        return await self.database_client.execute_one(
+            query=f"""-- sql
+            SELECT 
+                id,
+                access_token,
+                refresh_token,
+                expire_at,
+                refresh_expire_at,
+                scope,
+                token_type,
+                token_status,
+                csrf_token
+            FROM authorization_spoon_users
+            WHERE id = {self.database_client.placeholder("id")}
+            LIMIT 1
+            """,
+            args={"id": id},
+            response_type=TokenDataDto,
+        )
+
+    async def get_token_data_by_session_id(
+        self, encoded_session_id: bytes
+    ) -> TokenDataDto | None:
+        return await self.database_client.execute_one(
+            query=f"""-- sql
+            SELECT 
+                id,
+                access_token,
+                refresh_token,
+                expire_at,
+                refresh_expire_at,
+                scope,
+                token_type,
+                token_status,
+                csrf_token
+            FROM authorization_spoon_users as user
+            INNER JOIN authorization_spoon_user_sessions as session_tb
+            ON user.id = session_tb.authorization_spoon_user_id
+            WHERE session_tb.encoded_session_id = {self.database_client.placeholder("encoded_session_id")}
+            LIMIT 1
+            """,  # noqa: E501
+            args={"encoded_session_id": encoded_session_id},
+            response_type=TokenDataDto,
+        )
+
     async def insert_session(self, session_data: SessionDataDto) -> bool:
         epoch_seconds = int(time.time())
         result = await self.database_client.execute_cud(
@@ -95,6 +160,7 @@ class SpoonUserRepository:
                 authorization_spoon_user_id,
                 encoded_session_id,
                 csrf_token,
+                expires_at,
                 created_at,
                 updated_at
             ) VALUES (
@@ -102,6 +168,7 @@ class SpoonUserRepository:
                 {self.database_client.placeholder("authorization_spoon_user_id")},
                 {self.database_client.placeholder("encoded_session_id")},
                 {self.database_client.placeholder("csrf_token")},
+                {self.database_client.placeholder("expires_at")},
                 {self.database_client.placeholder("created_at")},
                 {self.database_client.placeholder("updated_at")},
             )
@@ -111,14 +178,17 @@ class SpoonUserRepository:
         )
         return result.inserted_count == 1
 
-    async def get_session_data(self, encoded_session_id: bytes) -> SessionDataDto:
+    async def get_session_data(
+        self, encoded_session_id: bytes
+    ) -> SessionDataDto | None:
         return await self.database_client.execute_one(
             query=f"""-- sql
             SELECT
                 id,
                 authorization_spoon_user_id,
                 encoded_session_id,
-                csrf_token
+                csrf_token,
+                expires_at
             FROM authorization_spoon_user_sessions
             WHERE encoded_session_id = {self.database_client.placeholder("encoded_session_id")}
             """,  # noqa: E501
@@ -129,13 +199,19 @@ class SpoonUserRepository:
     async def update_csrf_token(
         self, encoded_session_id: bytes, csrf_token: bytes
     ) -> bool:
+        epoch_seconds = int(time.time())
         result = await self.database_client.execute_cud(
             query=f"""-- sql 
             UPDATE authorization_spoon_user_sessions
-            SET csrf_token = {self.database_client.placeholder("csrf_token")}
+            SET csrf_token = {self.database_client.placeholder("csrf_token")},
+            updated_at = {self.database_client.placeholder("updated_at")}
             WHERE id = {self.database_client.placeholder("encoded_session_id")}
             LIMIt 1
             """,
-            args={"encoded_session_id": encoded_session_id, "csrf_token": csrf_token},
+            args={
+                "encoded_session_id": encoded_session_id,
+                "csrf_token": csrf_token,
+                "updated_at": epoch_seconds,
+            },
         )
         return result.updated_count == 1

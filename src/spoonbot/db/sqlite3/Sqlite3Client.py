@@ -38,13 +38,15 @@ class Sqlite3Client(DatabaseClient):
         query: str,
         args: dict[str, DBValueType] | None = None,
         response_type: type[ResponseGenericType] | None = None,
-    ) -> ResponseGenericType:
+    ) -> ResponseGenericType | None:
         if args is None:
             args = {}
 
         conn = self._get_connection()
         async with conn.execute(query, args) as cursor:
             result = await cursor.fetchone()
+            if result is None:
+                return None
             adapter = TypeAdapter(response_type)
             return adapter.validate_python(result)
 
@@ -53,13 +55,15 @@ class Sqlite3Client(DatabaseClient):
         query: str,
         args: dict[str, DBValueType] | None = None,
         response_type: type[ResponseGenericType] | None = None,
-    ) -> ResponseGenericType:
+    ) -> ResponseGenericType | None:
         if args is None:
             args = {}
 
         conn = self._get_connection()
         async with conn.execute(query, args) as cursor:
             results = await cursor.fetchall()
+            if results is None:
+                return None
             adapter = TypeAdapter(response_type)
             return adapter.validate_python(results)
 
