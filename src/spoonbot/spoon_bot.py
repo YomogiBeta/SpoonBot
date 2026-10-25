@@ -28,6 +28,13 @@ from spoonbot.enums.SpoonPermission import SpoonPermission
 from spoonbot.enums.TokenStatus import TokenStatus
 from spoonbot.httpclient.SpoonApiClient import SpoonApiClient
 from spoonbot.manager.SpoonEventStreamManager import SpoonEventStreamManager
+from spoonbot.types.callback_types import (
+    ChatFuncType,
+    DonationFuncType,
+    FollowFuncType,
+    LikeFuncType,
+    PresenceFuncType,
+)
 
 STATE_SIZE = 24
 OAUTH_STATE_SIGNE_SALT = "oauth-state-verification"
@@ -259,3 +266,18 @@ class SpoonBot:
 
     def start(self):
         web.run_app(self.web_application, host="127.0.0.1", port=8080)
+
+    def chat_event(self, callback: ChatFuncType):
+        self.spoon_event_stream_manager.chat_callback_append(callback)
+
+    def join_event(self, callback: PresenceFuncType):
+        self.spoon_event_stream_manager.presence_callback_append(callback)
+
+    def like_event(self, callback: LikeFuncType):
+        self.spoon_event_stream_manager.like_callback_append(callback)
+
+    def gift_event(self, callback: DonationFuncType):
+        self.spoon_event_stream_manager.donation_callback_append(callback)
+
+    def follow_event(self, callback: FollowFuncType):
+        self.spoon_event_stream_manager.follow_callback_append(callback)

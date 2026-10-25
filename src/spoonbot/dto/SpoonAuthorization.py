@@ -9,7 +9,7 @@ REFRESH_TOKEN_EXPIRE_SECONDS_LEAST = 60 * 60 * 24
 END_REFRESH_TOKEN_SECONDS = 10
 
 
-class SpoonAuthorization(BaseModel):
+class SpoonAuthorization(BaseModel, frozen=True):
     id: str
     access_token: str
     token_type: str

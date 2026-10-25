@@ -1,10 +1,22 @@
 import asyncio
 import json
 import random
+from importlib.metadata.diagnose import inspect
 from typing import Any
 
 from aiohttp import ClientConnectionError, ClientPayloadError, ClientResponseError, web
 
+from spoonbot.dto.ChatBody import ChatBody
+from spoonbot.dto.DonationBody import DonationBody
+from spoonbot.dto.event.ChatEvent import ChatEvent
+from spoonbot.dto.event.DonationEvent import GiftEvent
+from spoonbot.dto.event.EndEvent import EndEvent
+from spoonbot.dto.event.FollowEvent import FollowEvent
+from spoonbot.dto.event.JoinEvent import JoinEvent
+from spoonbot.dto.event.LikeEvent import LikeEvent
+from spoonbot.dto.FollowBody import FollowBody
+from spoonbot.dto.LikeBody import LikeBody
+from spoonbot.dto.PresenceBody import PresenceBody
 from spoonbot.dto.SpoonAuthorization import SpoonAuthorization
 from spoonbot.exception.BackoffRetryException import BackoffRetryException
 from spoonbot.exception.NonBackoffRetryException import NonBackoffRetryException
@@ -12,6 +24,14 @@ from spoonbot.exception.NonRetryException import NonRetryException
 from spoonbot.exception.TokenRefreshException import TokenRefreshException
 from spoonbot.httpclient.SpoonApiClient import SpoonApiClient
 from spoonbot.spoon_bot import SpoonBot
+from spoonbot.types.callback_types import (
+    ChatFuncType,
+    DonationFuncType,
+    EndFuncType,
+    FollowFuncType,
+    LikeFuncType,
+    PresenceFuncType,
+)
 
 DEFAULT_MAX_RETRIES = 6
 MAX_DELAY = 30
@@ -22,6 +42,12 @@ BACKOFF_TARGET_HTTP_STATUS = 404, 502
 class SpoonEventStreamManager:
     api_client: SpoonApiClient
     spoon_bot: SpoonBot
+    chat_callbacks: list[ChatFuncType]
+    presence_callbacks: list[PresenceFuncType]
+    like_callbacks: list[LikeFuncType]
+    donation_callbacks: list[DonationFuncType]
+    follow_callbacks: list[FollowFuncType]
+    end_callbacks: list[EndFuncType]
 
     def __init__(
         self, app: web.Application, api_client: SpoonApiClient, spoon_bot: SpoonBot
@@ -43,6 +69,24 @@ class SpoonEventStreamManager:
         if task is not None:
             task.cancel()
 
+    def chat_callback_append(self, callback: ChatFuncType):
+        self.chat_callbacks.append(callback)
+
+    def presence_callback_append(self, callback: PresenceFuncType):
+        self.presence_callbacks.append(callback)
+
+    def like_callback_append(self, callback: LikeFuncType):
+        self.like_callbacks.append(callback)
+
+    def donation_callback_append(self, callback: DonationFuncType):
+        self.donation_callbacks.append(callback)
+
+    def follow_callback_append(self, callback: FollowFuncType):
+        self.follow_callbacks.append(callback)
+
+    def end_callback_append(self, callback: EndFuncType):
+        self.end_callbacks.append(callback)
+
     async def _stream(self, authorization: SpoonAuthorization):
         async with self.api_client.stream_live(authorization) as event_source:
             async for event in event_source:
@@ -50,9 +94,73 @@ class SpoonEventStreamManager:
                 if not isinstance(payload, dict):
                     pass
                 payload: dict[str, Any]
-                match event.type:
+                match event.type.lower():
+                    case "chat":
+                        await self.chat_process(payload, authorization)
+                    case "presence":
+                        await self.presence_process(payload, authorization)
+                    case "like":
+                        await self.like_process(payload, authorization)
+                    case "donation":
+                        await self.donation_process(payload, authorization)
+                    case "follow":
+                        await self.follow_process(payload, authorization)
                     case "end":
                         await self.end_process(payload)
+
+    async def chat_process(
+        self, payload: dict[str, Any], authorization: SpoonAuthorization
+    ):
+        chat_body = ChatBody.model_validate(payload)
+        chat_event = ChatEvent(chat_body=chat_body, authorization=authorization)
+        for callback in self.chat_callbacks:
+            result = callback(chat_event)
+            if result is not None and inspect.isawaitable(result):
+                await result
+
+    async def presence_process(
+        self, payload: dict[str, Any], authorization: SpoonAuthorization
+    ):
+        presence_body = PresenceBody.model_validate(payload)
+        presence_event = JoinEvent(
+            presence_body=presence_body, authorization=authorization
+        )
+        for callback in self.presence_callbacks:
+            result = callback(presence_event)
+            if result is not None and inspect.isawaitable(result):
+                await result
+
+    async def like_process(
+        self, payload: dict[str, Any], authorization: SpoonAuthorization
+    ):
+        like_body = LikeBody.model_validate(payload)
+        like_event = LikeEvent(like_body=like_body, authorization=authorization)
+        for callback in self.like_callbacks:
+            result = callback(like_event)
+            if result is not None and inspect.isawaitable(result):
+                await result
+
+    async def donation_process(
+        self, payload: dict[str, Any], authorization: SpoonAuthorization
+    ):
+        donation_body = DonationBody.model_validate(payload)
+        donation_event = GiftEvent(
+            donation_body=donation_body, authorization=authorization
+        )
+        for callback in self.donation_callbacks:
+            result = callback(donation_event)
+            if result is not None and inspect.isawaitable(result):
+                await result
+
+    async def follow_process(
+        self, payload: dict[str, Any], authorization: SpoonAuthorization
+    ):
+        follow_body = FollowBody.model_validate(payload)
+        follow_event = FollowEvent(follow_body=follow_body, authorization=authorization)
+        for callback in self.follow_callbacks:
+            result = callback(follow_event)
+            if result is not None and inspect.isawaitable(result):
+                await result
 
     async def end_process(self, payload: dict[str, Any]):
         reason = payload.get("reason")
@@ -117,4 +225,8 @@ class SpoonEventStreamManager:
                 except NonRetryException:
                     raise
         finally:
+            for callback in self.end_callbacks:
+                result = callback(EndEvent(authorization=authorization))
+                if result is not None and inspect.isawaitable(result):
+                    await result
             self.tasks.pop(authorization.id, None)
