@@ -1,0 +1,77 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#ffffff">
+  <meta
+    name="description"
+    content="ボットとの連携に失敗しました。"
+  >
+  <title>連携失敗 | spoonbot</title>
+  <link rel="stylesheet" href="css/fail.css">
+</head>
+<body class="failure-page">
+
+  <header class="failure-header">
+    <a href="/" class="failure-brand">spoonbot</a>
+  </header>
+
+  <main class="failure-main">
+    <section
+      class="failure-content"
+      aria-labelledby="failure-title"
+      aria-describedby="failure-description"
+    >
+
+      <div class="failure-icon" aria-hidden="true">
+							<img src="image/fail.svg" />
+      </div>
+
+      <p class="failure-eyebrow">CONNECTION FAILED</p>
+
+      <h1 id="failure-title" class="failure-title">
+        ボットとの連携に失敗しました
+      </h1>
+
+      <p
+        id="failure-description"
+        class="failure-description"
+      >
+        正常に連携を完了できませんでした。
+        以下の内容を確認して、もう一度お試しください。
+      </p>
+
+      <div class="failure-notice">
+        <p class="failure-notice-title">
+          考えられる原因
+        </p>
+
+        <ul class="failure-reasons">
+          <li>認証がキャンセルされた</li>
+          <li>認証の有効期限が切れた</li>
+          <li>連携処理中にエラーが発生した</li>
+        </ul>
+      </div>
+
+      <a href="/connect" class="failure-retry-button">
+        <span>もう一度連携する</span>
+      </a>
+
+      <a href="/" class="failure-back-link">
+        トップページへ戻る
+      </a>
+
+    </section>
+  </main>
+
+  <footer class="failure-footer">
+    <span>Powered by</span>
+    <strong>spoonbot wrapper api</strong>
+    <span class="failure-footer-separator" aria-hidden="true">·</span>
+    <span>made by YomogiBeta</span>
+  </footer>
+
+</body>
+</html>

@@ -1,0 +1,73 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="description" content="ボットを招待して利用を開始しましょう。">
+  <title>ボット招待 | spoonbot</title>
+  <link rel="stylesheet" href="css/invite.css">
+</head>
+<body class="invite-page">
+
+  <header class="invite-header">
+    <a href="/" class="invite-brand">spoonbot</a>
+  </header>
+
+  <main class="invite-main">
+    <section class="invite-content" aria-labelledby="invite-title">
+
+      <div class="invite-icon" aria-hidden="true">
+        <img src="image/bot-icon.svg" />
+      </div>
+
+      <p class="invite-eyebrow">BOT INVITATION</p>
+
+      <h1 id="invite-title" class="invite-title">
+        bot-name を招待する
+      </h1>
+
+      <p class="invite-description">
+        貴方の枠にbot-nameボットを招待します。今後もbot-nameボットを招待したいときは、本URLからいつでも可能です。
+      </p>
+
+      <a href="/bot/invite" class="invite-primary-button">
+        <span>今すぐbotを招待する</span>
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M5 12H19M12 5L19 12L12 19"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </a>
+
+      <a href="/bot" class="invite-secondary-button">
+        bot専用ページへ
+      </a>
+						<button
+						type="button"
+						class="invite-home-button"
+						id="invite-home-button">
+						  ホームに追加する
+					</button>
+
+      <p class="invite-help">
+        招待方法やボットの詳細は、専用ページで確認できます。
+      </p>
+
+    </section>
+  </main>
+
+  <footer class="invite-footer">
+    <span>Powered by</span>
+    <strong>spoonbot wrapper api</strong>
+    <span class="invite-footer-separator" aria-hidden="true">·</span>
+    <span>made by YomogiBeta</span>
+  </footer>
+
+</body>
+</html>

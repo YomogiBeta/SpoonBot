@@ -1,0 +1,219 @@
+
+:root {
+  color-scheme: light;
+  --background: #ffffff;
+  --text: #171717;
+  --muted: #595959;
+  --subtle: #737373;
+  --border: #dedede;
+  --button: #202020;
+  --button-hover: #383838;
+  --notice: #f6f6f6;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--background);
+  color: var(--text);
+  font-family:
+    -apple-system, BlinkMacSystemFont,
+    "Segoe UI", "Noto Sans JP",
+    "Hiragino Kaku Gothic ProN", Meiryo, sans-serif;
+  font-size: 15px;
+  line-height: 1.8;
+  -webkit-font-smoothing: antialiased;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: 0 28px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  min-height: 68px;
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: -0.5px;
+  text-decoration: none;
+}
+
+.connect {
+  width: 100%;
+  max-width: 440px;
+  margin: auto;
+  padding: 64px 0 72px;
+}
+
+.bot-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 28px;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.bot-mark svg {
+  width: 34px;
+  height: 34px;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(24px, 5vw, 30px);
+  font-weight: 750;
+  line-height: 1.45;
+  letter-spacing: -0.8px;
+  overflow-wrap: anywhere;
+}
+
+.description {
+  margin: 16px 0 30px;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.9;
+}
+
+.info {
+  margin-bottom: 24px;
+  padding: 16px 18px;
+  background: var(--notice);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.info-title {
+  margin: 0 0 5px;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.info p:not(.info-title) {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.9;
+}
+
+.connect-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 54px;
+  padding: 14px 20px;
+  color: #ffffff;
+  background: var(--button);
+  border: 1px solid var(--button);
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.connect-button:hover {
+  background: var(--button-hover);
+}
+
+.connect-button:focus-visible {
+  outline: 3px solid #777777;
+  outline-offset: 4px;
+}
+
+.connect-button svg {
+  flex-shrink: 0;
+  width: 19px;
+  height: 19px;
+}
+
+.help {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.8;
+  text-align: center;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 60px;
+  padding: 16px 0;
+  border-top: 1px solid var(--border);
+  color: var(--subtle);
+  font-size: 12px;
+  text-align: center;
+}
+
+.footer strong {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  .page {
+    padding: 0 20px;
+  }
+
+  .header {
+    min-height: 60px;
+  }
+
+  .connect {
+    max-width: 440px;
+    padding: 48px 0;
+  }
+
+  h1 {
+    font-size: 25px;
+  }
+
+  .description {
+    font-size: 14px;
+  }
+
+  .desktop-only {
+    display: none;
+  }
+
+  .footer {
+    font-size: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+  }
+}

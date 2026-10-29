@@ -1,0 +1,334 @@
+:root {
+  color-scheme: light;
+
+  --failure-bg: #ffffff;
+  --failure-text: #171717;
+  --failure-muted: #595959;
+  --failure-subtle: #737373;
+  --failure-border: #dedede;
+  --failure-button: #202020;
+  --failure-button-hover: #383838;
+  --failure-error: #b42318;
+  --failure-error-border: #e5b8b5;
+  --failure-notice-bg: #f6f6f6;
+}
+
+.failure-page,
+.failure-page * {
+  box-sizing: border-box;
+}
+
+.failure-page {
+  display: flex;
+  flex-direction: column;
+
+  min-width: 320px;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0;
+
+  background: var(--failure-bg);
+  color: var(--failure-text);
+
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "Noto Sans JP",
+    "Hiragino Kaku Gothic ProN",
+    Meiryo,
+    sans-serif;
+
+  font-size: 15px;
+  line-height: 1.8;
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.failure-header {
+  display: flex;
+  align-items: center;
+
+  width: 100%;
+  min-height: 68px;
+  padding: 0 28px;
+
+  border-bottom: 1px solid var(--failure-border);
+}
+
+.failure-brand {
+  color: var(--failure-text);
+
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: -0.5px;
+
+  text-decoration: none;
+}
+
+.failure-brand:hover {
+  color: var(--failure-muted);
+}
+
+.failure-brand:focus-visible {
+  outline: 2px solid var(--failure-text);
+  outline-offset: 4px;
+}
+
+.failure-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  width: 100%;
+  padding: 48px 28px;
+}
+
+.failure-content {
+  width: 100%;
+  max-width: 440px;
+  margin: auto 0;
+}
+
+.failure-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 60px;
+  height: 60px;
+  margin-bottom: 28px;
+
+  color: var(--failure-error);
+
+  border: 1px solid var(--failure-error-border);
+  border-radius: 50%;
+}
+
+.failure-icon svg {
+  display: block;
+
+  width: 40px;
+  height: 40px;
+}
+
+.failure-eyebrow {
+  margin: 0 0 10px;
+
+  color: var(--failure-error);
+
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 1.6px;
+  line-height: 1.6;
+}
+
+.failure-title {
+  margin: 0;
+
+  color: var(--failure-text);
+
+  font-size: clamp(24px, 5vw, 29px);
+  font-weight: 750;
+  line-height: 1.5;
+  letter-spacing: -0.8px;
+
+  overflow-wrap: anywhere;
+}
+
+.failure-description {
+  margin: 16px 0 28px;
+
+  color: var(--failure-muted);
+
+  font-size: 14px;
+  line-height: 1.9;
+}
+
+.failure-notice {
+  width: 100%;
+  margin-bottom: 24px;
+  padding: 16px 18px;
+
+  background: var(--failure-notice-bg);
+  border: 1px solid var(--failure-border);
+  border-radius: 6px;
+}
+
+.failure-notice-title {
+  margin: 0 0 8px;
+
+  color: var(--failure-text);
+
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.7;
+}
+
+.failure-reasons {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+  margin: 0;
+  padding-left: 20px;
+
+  color: var(--failure-muted);
+
+  font-size: 13px;
+  line-height: 1.9;
+}
+
+.failure-reasons li {
+  padding-left: 2px;
+}
+.failure-retry-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+
+  width: 100%;
+  min-height: 54px;
+  padding: 14px 20px;
+
+  color: #ffffff;
+  background: var(--failure-button);
+
+  border: 1px solid var(--failure-button);
+  border-radius: 6px;
+
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.6;
+  text-align: center;
+  text-decoration: none;
+
+  cursor: pointer;
+
+  transition: background-color 0.15s ease;
+}
+
+.failure-retry-button:hover {
+  color: #ffffff;
+  background: var(--failure-button-hover);
+}
+
+.failure-retry-button:focus-visible {
+  outline: 3px solid #777777;
+  outline-offset: 4px;
+}
+
+.failure-retry-button:active {
+  background: #111111;
+}
+
+.failure-retry-button svg {
+  display: block;
+
+  width: 19px;
+  height: 19px;
+  flex-shrink: 0;
+}
+
+.failure-back-link {
+  display: block;
+
+  width: fit-content;
+  max-width: 100%;
+  margin: 20px auto 0;
+
+  color: var(--failure-muted);
+
+  font-size: 13px;
+  text-align: center;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.failure-back-link:hover {
+  color: var(--failure-text);
+}
+
+.failure-back-link:focus-visible {
+  outline: 2px solid var(--failure-text);
+  outline-offset: 4px;
+}
+
+.failure-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+
+  width: 100%;
+  min-height: 60px;
+  padding: 16px 28px;
+
+  border-top: 1px solid var(--failure-border);
+
+  color: var(--failure-subtle);
+
+  font-size: 12px;
+  line-height: 1.7;
+  text-align: center;
+}
+
+.failure-footer strong {
+  color: var(--failure-muted);
+  font-weight: 600;
+}
+
+.failure-footer-separator {
+  padding: 0 1px;
+}
+
+@media (max-width: 600px) {
+  .failure-header {
+    min-height: 60px;
+    padding: 0 20px;
+  }
+
+  .failure-main {
+    padding: 36px 20px;
+  }
+
+  .failure-content {
+    max-width: 440px;
+  }
+
+  .failure-icon {
+    margin-bottom: 24px;
+  }
+
+  .failure-title {
+    font-size: 25px;
+  }
+
+  .failure-description {
+    font-size: 14px;
+  }
+
+  .failure-notice {
+    padding: 14px 16px;
+  }
+
+  .failure-footer {
+    gap: 5px;
+    padding: 16px 20px;
+    font-size: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .failure-page *,
+  .failure-page *::before,
+  .failure-page *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}
