@@ -58,6 +58,7 @@ class SpoonBot:
         oauth_redirect_url: str | None,
         country: Country | None,
         mysql_config: MySQLConfig | None,
+        bot_name: str = "Spoon Bot",
     ):
         self.permissions = permissions or set()
         self.permissions.add(SpoonPermission.READ_ME)
@@ -70,6 +71,7 @@ class SpoonBot:
             "SPOON_OAUTH_REDIRECT_URL", oauth_redirect_url or ""
         )
         self.target_country = Country(os.getenv("SPOON_BOT_COUNTRY", country))
+        self.bot_name = os.getenv("SPOON_BOT_NAME", bot_name)
 
         assert self.spoon_client_id is not None, "Required SPOON_CLIENT_ID"
         assert self.spoon_client_secret is not None, "Required SPOON_CLIENR_SECRET"
@@ -261,6 +263,9 @@ class SpoonBot:
             text.encode("utf-8"),
             hashlib.sha256,
         ).digest()
+
+    def get_bot_name(self):
+        return self.bot_name if len(self.bot_name) > 0 else "Spoon bot"
 
     def startup_function(self):
         async def on_startup(web_application: web.Application):

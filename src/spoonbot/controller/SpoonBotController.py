@@ -15,6 +15,7 @@ class SpoonBotController:
         self.spoon_bot = spoon_bot
 
         routes.get("/api/csrf-token")(self.csrf_token_function())
+        routes.get("/api/bot-name")(self.bot_name_function())
         routes.post("/api/bot/invite")(self.bot_invite_request_handler())
 
     def csrf_token_function(self):
@@ -26,6 +27,12 @@ class SpoonBotController:
             return json_response({"csrf_token": csrf_token})
 
         return csrf_token_handler
+
+    def bot_name_function(self):
+        async def bot_name_handler(_: Request) -> Response:
+            return json_response({"bot_name": self.spoon_bot.get_bot_name()})
+
+        return bot_name_handler
 
     def bot_invite_request_handler(self):
         async def bot_invite_request(request: Request) -> Response:

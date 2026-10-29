@@ -1,6 +1,5 @@
 from aiohttp.web_exceptions import HTTPFound
 from aiohttp.web_request import Request
-from aiohttp.web_response import Response
 from aiohttp.web_routedef import RouteTableDef
 
 from spoonbot.constants import DEFAULT_SESSION_EXPIRES_IN
@@ -43,24 +42,29 @@ class SpoonOAuthController:
             returned_state = request.query.get("state")
             signed_state = request.cookies.get(SIGNED_STATE_KEY)
 
-            auth = await self.spoon_bot.get_authorization(
-                code, returned_state, signed_state
-            )
-            await self.spoon_bot.save_authorization(auth)
-            session_id = await self.spoon_bot.save_session(auth)
+            try:
+                auth = await self.spoon_bot.get_authorization(
+                    code, returned_state, signed_state
+                )
+                await self.spoon_bot.save_authorization(auth)
+                session_id = await self.spoon_bot.save_session(auth)
 
-            response = Response(text="Bot連携に成功しました。")
-            response.del_cookie(SIGNED_STATE_KEY)
-            response.set_cookie(
-                name="session_id",
-                value=session_id,
-                max_age=DEFAULT_SESSION_EXPIRES_IN,
-                httponly=True,
-                samesite="Lax",
-                secure=True,
-            )
+                response = HTTPFound(location="/spoonbot/success")
+                response.del_cookie(SIGNED_STATE_KEY)
+                response.set_cookie(
+                    name="session_id",
+                    value=session_id,
+                    max_age=DEFAULT_SESSION_EXPIRES_IN,
+                    httponly=True,
+                    samesite="Lax",
+                    secure=True,
+                )
 
-            return response
+                return response
+            except Exception:
+                response = HTTPFound(location="/spoonbot/fail")
+                response.del_cookie(SIGNED_STATE_KEY)
+                return response
 
         return get_token_via_oauth
 
