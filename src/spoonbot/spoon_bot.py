@@ -49,15 +49,15 @@ OAUTH_STATE_SIGNE_SALT = "oauth-state-verification"
 
 
 class SpoonBot:
-    async def init(
+    def __init__(
         self,
-        permissions: set[SpoonPermission] | None,
-        spoon_client_id: str | None,
-        spoon_client_secret: str | None,
-        secret_key: str | None,
-        oauth_redirect_url: str | None,
-        country: Country | None,
-        mysql_config: MySQLConfig | None,
+        permissions: set[SpoonPermission] | None = None,
+        spoon_client_id: str | None = None,
+        spoon_client_secret: str | None = None,
+        secret_key: str | None = None,
+        oauth_redirect_url: str | None = None,
+        country: Country | None = None,
+        mysql_config: MySQLConfig | None = None,
         bot_name: str = "Spoon Bot",
     ):
         self.permissions = permissions or set()
@@ -72,6 +72,7 @@ class SpoonBot:
         )
         self.target_country = Country(os.getenv("SPOON_BOT_COUNTRY", country))
         self.bot_name = os.getenv("SPOON_BOT_NAME", bot_name)
+        self.mysql_config = mysql_config
 
         assert self.spoon_client_id is not None, "Required SPOON_CLIENT_ID"
         assert self.spoon_client_secret is not None, "Required SPOON_CLIENR_SECRET"
@@ -83,21 +84,11 @@ class SpoonBot:
         assert self.target_country is not None, "Required SPOON_BOT_COUNTRY"
 
         self.constants = ConstantsConfig.create(self.target_country)
-        self.oauth_client = WebApplicationClient(self.spoon_client_id)
-        self.api_client = await SpoonApiClient.create(self.constants.api_base_url)
-        self.api_client.initialize(self.spoon_client_id, self.spoon_client_secret)
-        self.spoon_user_repository = SpoonUserRepository()
-        await self.spoon_user_repository.initialize(mysql_config)
 
         self.signer = TimestampSigner(self.secret_key, salt=OAUTH_STATE_SIGNE_SALT)
-
         self.web_application = web.Application()
-        self.spoon_event_stream_manager = SpoonEventStreamManager(
-            self.web_application, self.api_client, self
-        )
         self.web_application.on_startup.append(self.startup_function())
         self.web_application.on_cleanup.append(self.cleanup_function())
-
         self.spoon_oauth_controller = SpoonOAuthController(self)
         self.spoon_bot_controller = SpoonBotController(self)
         self.web_application.add_routes(
@@ -106,6 +97,19 @@ class SpoonBot:
                 *self.spoon_bot_controller.get_route(),
             ]
         )
+        self.spoon_event_stream_manager = SpoonEventStreamManager(
+            self.web_application, self.api_client, self
+        )
+        self.oauth_client = WebApplicationClient(self.spoon_client_id)
+
+    async def init(self):
+        assert self.spoon_client_id is not None
+        assert self.spoon_client_secret is not None
+
+        self.api_client = await SpoonApiClient.create(self.constants.api_base_url)
+        self.api_client.initialize(self.spoon_client_id, self.spoon_client_secret)
+        self.spoon_user_repository = SpoonUserRepository()
+        await self.spoon_user_repository.initialize(self.mysql_config)
 
     def user_authorize_url(self) -> AuthorizeUrl:
         assert self.spoon_client_id is not None, "Required SPOON_CLIENT_ID"
@@ -269,6 +273,7 @@ class SpoonBot:
 
     def startup_function(self):
         async def on_startup(web_application: web.Application):
+            await self.init()
             web_application["sse_manager"] = self.spoon_event_stream_manager
 
         return on_startup
