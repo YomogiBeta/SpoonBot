@@ -54,6 +54,16 @@ class APIClient(ABC):
             adapter = TypeAdapter(response_type)
             return adapter.validate_python(raw_json)
 
+    async def _post_no_content(
+        self,
+        endpoint: str,
+        body: Any,
+        headers: dict[str, str] | None = None,
+    ) -> bool:
+        async with self._session.post(endpoint, json=body, headers=headers) as response:
+            response.raise_for_status()
+            return True
+
     def _sse_stream(
         self,
         endpoint: str,

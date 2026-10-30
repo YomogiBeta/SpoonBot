@@ -1,4 +1,4 @@
-from aiohttp.web_exceptions import HTTPForbidden, HTTPUnauthorized
+from aiohttp.web_exceptions import HTTPForbidden, HTTPNotFound, HTTPUnauthorized
 from aiohttp.web_request import Request
 from aiohttp.web_response import Response, json_response
 from aiohttp.web_routedef import RouteTableDef
@@ -16,6 +16,7 @@ class SpoonBotController:
 
         routes.get("/api/v1/csrf-token")(self.csrf_token_function())
         routes.get("/api/v1/bot-name")(self.bot_name_function())
+        routes.get("/api/v1/bot-operation-page")(self.bot_operation_page_function())
         routes.post("/api/v1/bot/invite")(self.bot_invite_request_handler())
 
     def csrf_token_function(self):
@@ -33,6 +34,15 @@ class SpoonBotController:
             return json_response({"bot_name": self.spoon_bot.get_bot_name()})
 
         return bot_name_handler
+
+    def bot_operation_page_function(self):
+        async def bot_operation_page(_: Request) -> Response:
+            page = self.spoon_bot.get_bot_operation_page()
+            if page is None:
+                return HTTPNotFound()
+            return json_response({"page": page})
+
+        return bot_operation_page
 
     def bot_invite_request_handler(self):
         async def bot_invite_request(request: Request) -> Response:

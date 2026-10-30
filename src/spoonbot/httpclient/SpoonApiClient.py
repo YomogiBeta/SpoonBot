@@ -1,7 +1,11 @@
 import base64
 
+from spoonbot.dto.ChatBody import ChatBody
 from spoonbot.dto.SpoonAuthorization import SpoonAuthorization
 from spoonbot.httpclient.APIClient import APIClient
+from spoonbot.httpclient.dto.FanResponseDto import FanResponseDto
+from spoonbot.httpclient.dto.ListenersResponseDto import ListenersResponseDto
+from spoonbot.httpclient.dto.LiveRoomDto import LiveRoomDto
 from spoonbot.httpclient.dto.TokenResponse import TokenResponse
 from spoonbot.httpclient.dto.UserDataDto import UserDataDto
 
@@ -39,6 +43,62 @@ class SpoonApiClient(APIClient):
             endpoint="me",
             headers={"Authorization": self._authorize_token_by_raw_token(access_token)},
             response_type=UserDataDto,
+        )
+
+    async def get_live(self, authorization: SpoonAuthorization) -> LiveRoomDto:
+        return await self._get(
+            endpoint="live",
+            headers={"Authorization": self._authorize_token(authorization)},
+            response_type=LiveRoomDto,
+        )
+
+    async def get_live_listeners(
+        self, cursor: str | None, authorization: SpoonAuthorization
+    ) -> ListenersResponseDto:
+        return await self._get(
+            endpoint="live/listeners",
+            queries={"cursor": cursor} if cursor is not None else None,
+            headers={"Authorization": self._authorize_token(authorization)},
+            response_type=ListenersResponseDto,
+        )
+
+    async def get_live_fans(self, authorization: SpoonAuthorization) -> FanResponseDto:
+        return await self._get(
+            endpoint="live/fans",
+            headers={"Authorization": self._authorize_token(authorization)},
+            response_type=FanResponseDto,
+        )
+
+    async def get_live_donations(
+        self, cursor: str | None, authorization: SpoonAuthorization
+    ) -> ListenersResponseDto:
+        return await self._get(
+            endpoint="live/donations",
+            queries={"cursor": cursor} if cursor is not None else None,
+            headers={"Authorization": self._authorize_token(authorization)},
+            response_type=ListenersResponseDto,
+        )
+
+    async def send_chat(
+        self, chat_body: ChatBody, authorization: SpoonAuthorization
+    ) -> bool:
+        return await self._post_no_content(
+            endpoint="live/chat",
+            body=chat_body.model_dump(),
+            headers={
+                "Authorization": self._authorize_token(authorization),
+                "Content-Type": "application/json",
+            },
+        )
+
+    async def follow_dj(self, authorization: SpoonAuthorization) -> bool:
+        return await self._post_no_content(
+            endpoint="live/follow",
+            body=None,
+            headers={
+                "Authorization": self._authorize_token(authorization),
+                "Content-Type": "application/json",
+            },
         )
 
     def stream_live(self, authorization: SpoonAuthorization):

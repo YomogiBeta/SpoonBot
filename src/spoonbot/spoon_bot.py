@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import hashlib
 import hmac
@@ -5,6 +6,7 @@ import logging
 import os
 import secrets
 import time
+from urllib.parse import urlparse
 
 import uuid_utils as uuid
 from aiohttp import web
@@ -23,6 +25,7 @@ from spoonbot.constants import (
     SPACE,
 )
 from spoonbot.controller.SpoonBotController import SpoonBotController
+from spoonbot.controller.SpoonBotWebController import SpoonBotWebController
 from spoonbot.controller.SpoonOAuthController import SpoonOAuthController
 from spoonbot.db.config.MySQLConfig import MySQLConfig
 from spoonbot.db.dto.TokenDataDto import SessionDataDto, TokenDataDto
@@ -59,6 +62,7 @@ class SpoonBot:
         country: Country | None = None,
         mysql_config: MySQLConfig | None = None,
         bot_name: str = "Spoon Bot",
+        bot_operation_page: str | None = None,
     ):
         self.permissions = permissions or set()
         self.permissions.add(SpoonPermission.READ_ME)
@@ -73,6 +77,7 @@ class SpoonBot:
         self.target_country = Country(os.getenv("SPOON_BOT_COUNTRY", country))
         self.bot_name = os.getenv("SPOON_BOT_NAME", bot_name)
         self.mysql_config = mysql_config
+        self.bot_operation_page = self._normalize_page_target(bot_operation_page)
 
         assert self.spoon_client_id is not None, "Required SPOON_CLIENT_ID"
         assert self.spoon_client_secret is not None, "Required SPOON_CLIENR_SECRET"
@@ -95,6 +100,7 @@ class SpoonBot:
             [
                 *self.spoon_oauth_controller.get_route(),
                 *self.spoon_bot_controller.get_route(),
+                *SpoonBotWebController().get_route(),
             ]
         )
         self.spoon_event_stream_manager = SpoonEventStreamManager(
@@ -268,8 +274,29 @@ class SpoonBot:
             hashlib.sha256,
         ).digest()
 
-    def get_bot_name(self):
+    def _normalize_page_target(self, value: str | None) -> str | None:
+        if value is None:
+            return None
+        parsed = urlparse(value)
+        if parsed.scheme in ("http", "https") and parsed.netloc:
+            return value
+
+        # 相対パスの ../ や .. を禁止
+        parts = value.split("/")
+        if ".." in parts:
+            raise argparse.ArgumentTypeError("'..' is not allowed in the path")
+
+        # 末尾に / を補完
+        if not value.startswith("/"):
+            value = f"/{value}"
+
+        return value
+
+    def get_bot_name(self) -> str:
         return self.bot_name if len(self.bot_name) > 0 else "Spoon bot"
+
+    def get_bot_operation_page(self) -> str | None:
+        return self.bot_operation_page
 
     def startup_function(self):
         async def on_startup(web_application: web.Application):
