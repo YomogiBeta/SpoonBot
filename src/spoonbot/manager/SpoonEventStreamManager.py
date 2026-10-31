@@ -1,6 +1,9 @@
 import asyncio
 import json
+import logging
 import random
+import time
+from http import HTTPStatus
 from importlib.metadata.diagnose import inspect
 from typing import Any
 
@@ -35,8 +38,11 @@ from spoonbot.types.callback_types import (
 
 DEFAULT_MAX_RETRIES = 6
 MAX_DELAY = 30
+BACKOFF_RESET_SECONDS = 60 * 3
+MAX_LOOP = 300
 # https://developers.spooncast.net/docs/en/api-reference/live-events#errors
-BACKOFF_TARGET_HTTP_STATUS = 404, 502
+BACKOFF_TARGET_HTTP_STATUS = 404, 500, 502
+logger = logging.getLogger(__name__)
 
 
 class SpoonEventStreamManager:
@@ -94,19 +100,25 @@ class SpoonEventStreamManager:
                 if not isinstance(payload, dict):
                     pass
                 payload: dict[str, Any]
-                match event.type.lower():
-                    case "chat":
-                        await self.chat_process(payload, authorization)
-                    case "presence":
-                        await self.presence_process(payload, authorization)
-                    case "like":
-                        await self.like_process(payload, authorization)
-                    case "donation":
-                        await self.donation_process(payload, authorization)
-                    case "follow":
-                        await self.follow_process(payload, authorization)
-                    case "end":
-                        await self.end_process(payload)
+                try:
+                    match event.type.lower():
+                        case "chat":
+                            await self.chat_process(payload, authorization)
+                        case "presence":
+                            await self.presence_process(payload, authorization)
+                        case "like":
+                            await self.like_process(payload, authorization)
+                        case "donation":
+                            await self.donation_process(payload, authorization)
+                        case "follow":
+                            await self.follow_process(payload, authorization)
+                        case "end":
+                            await self.end_process(payload)
+                except ClientResponseError as exception:
+                    if exception.status == HTTPStatus.FORBIDDEN.value:
+                        logger.warning(f"{exception.message}")
+                        continue
+                    raise exception
 
     async def chat_process(
         self, payload: dict[str, Any], authorization: SpoonAuthorization
@@ -189,8 +201,17 @@ class SpoonEventStreamManager:
             jitter = random.uniform(0, delay * 0.25)  # 25% Jitter
             await asyncio.sleep(delay + jitter)
 
+        attempt = 0
+        safety_index = 0
+        backoff_anchor = None
         try:
-            for attempt in range(DEFAULT_MAX_RETRIES + 1):
+            while attempt < DEFAULT_MAX_RETRIES and safety_index < MAX_LOOP:
+                safety_index += 1
+                if backoff_anchor is not None:
+                    now = int(time.time())
+                    if now - backoff_anchor >= BACKOFF_RESET_SECONDS:
+                        attempt = 0
+                        backoff_anchor = None
                 try:
                     if (
                         not authorization.valid_refresh_token()
@@ -203,8 +224,12 @@ class SpoonEventStreamManager:
                 except ClientResponseError as exception:
                     if attempt == DEFAULT_MAX_RETRIES:
                         raise exception
+                    if exception.status == HTTPStatus.UNAUTHORIZED.value:
+                        authorization = await self._refresh_token(authorization)
                     if exception.status in BACKOFF_TARGET_HTTP_STATUS:
                         await wait_backoff(attempt)
+                        attempt += 1
+                        backoff_anchor = int(time.time())
                     else:
                         raise exception
                 except (
@@ -215,18 +240,31 @@ class SpoonEventStreamManager:
                     if attempt == DEFAULT_MAX_RETRIES:
                         raise exception
                     await wait_backoff(attempt)
+                    attempt += 1
+                    backoff_anchor = int(time.time())
                 except BackoffRetryException as exception:
                     if attempt == DEFAULT_MAX_RETRIES:
                         raise exception
                     await wait_backoff(attempt)
+                    attempt += 1
+                    backoff_anchor = int(time.time())
                 except NonBackoffRetryException as exception:
                     if attempt == DEFAULT_MAX_RETRIES:
                         raise exception
-                except NonRetryException:
-                    raise
+                    continue
+                except NonRetryException as exception:
+                    raise exception
+        except Exception as exception:
+            logger.exception(
+                "The stream connection was stopped due to an error: %s", exception
+            )
         finally:
             for callback in self.end_callbacks:
                 result = callback(EndEvent(authorization=authorization))
                 if result is not None and inspect.isawaitable(result):
                     await result
+            if safety_index >= MAX_LOOP:
+                logger.error(
+                    "The stream was stopped due to an unusually high number of Stream Loops."  # noqa: E501
+                )
             self.tasks.pop(authorization.id, None)

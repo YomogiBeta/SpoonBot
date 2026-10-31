@@ -6,16 +6,20 @@ import logging
 import os
 import secrets
 import time
+from functools import wraps
+from http import HTTPStatus
+from typing import Callable
 from urllib.parse import urlparse
 
 import uuid_utils as uuid
-from aiohttp import web
+from aiohttp import ClientResponseError, web
 from aiohttp.web_exceptions import (
     HTTPForbidden,
     HTTPInternalServerError,
     HTTPUnauthorized,
 )
 from itsdangerous import TimestampSigner
+from multidict import MultiMapping
 from oauthlib.oauth2 import WebApplicationClient
 
 from spoonbot.config.ConstantsConfig import ConstantsConfig
@@ -31,10 +35,18 @@ from spoonbot.db.config.MySQLConfig import MySQLConfig
 from spoonbot.db.dto.TokenDataDto import SessionDataDto, TokenDataDto
 from spoonbot.db.SpoonUserRepository import SpoonUserRepository
 from spoonbot.dto.AuthorizeUrl import AuthorizeUrl
+from spoonbot.dto.DonationData import Donation, DonationData
+from spoonbot.dto.FanData import FanData
+from spoonbot.dto.ListenerData import ListenerData, SpoonListener
+from spoonbot.dto.LiveRoom import LiveRoom
+from spoonbot.dto.RateLimit import RateLimit
 from spoonbot.dto.SpoonAuthorization import SpoonAuthorization
 from spoonbot.enums.Country import Country
 from spoonbot.enums.SpoonPermission import SpoonPermission
 from spoonbot.enums.TokenStatus import TokenStatus
+from spoonbot.exception.BurstRequestException import BurstRequestException
+from spoonbot.exception.DailyRequestLimitException import DailyRequestLimitException
+from spoonbot.httpclient.dto.ChatSendRequestBody import ChatSendRequestBody
 from spoonbot.httpclient.SpoonApiClient import SpoonApiClient
 from spoonbot.manager.SpoonEventStreamManager import SpoonEventStreamManager
 from spoonbot.types.callback_types import (
@@ -49,6 +61,43 @@ logger = logging.getLogger(__name__)
 
 STATE_SIZE = 24
 OAUTH_STATE_SIGNE_SALT = "oauth-state-verification"
+
+
+def _create_ratelimit(headers: MultiMapping[str]) -> RateLimit:
+    return RateLimit(
+        remaining=int(headers.get("x-ratelimit-remaining", -1)),
+        replenish_rate=int(headers.get("x-ratelimit-replenish-rate", -1)),
+        burst_capacity=int(headers.get("x-ratelimit-burst-capacity", -1)),
+        daily_limit=int(headers.get("x-ratelimit-daily-limit", -1)),
+        daily_remaining=int(headers.get("x-ratelimit-daily-remaining", -1)),
+        daily_reset_epoch=int(
+            headers.get("x-ratelimit-daily-reset", -1),
+        ),
+        daily_limited_scope=headers.get("x-ratelimit-daily-scope"),
+    )
+
+
+def _too_request_handling(func: Callable):
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        try:
+            return await func(*args, **kwargs)
+        except ClientResponseError as exception:
+            if exception.status == HTTPStatus.TOO_MANY_REQUESTS.value:
+                assert exception.headers is not None
+                if exception.headers and "retry-after" in (
+                    key.lower() for key in exception.headers
+                ):
+                    raise DailyRequestLimitException(
+                        token_ratelimit=_create_ratelimit(exception.headers),
+                        url=str(exception.request_info.url),
+                    )
+                raise BurstRequestException(
+                    token_ratelimit=_create_ratelimit(exception.headers),
+                    url=str(exception.request_info.url),
+                )
+
+    return wrapper
 
 
 class SpoonBot:
@@ -66,10 +115,10 @@ class SpoonBot:
     ):
         self.permissions = permissions or set()
         self.permissions.add(SpoonPermission.READ_ME)
-        # EventStream を使うためには、streamの権限が1つ以上必要なため、必ず likeを要求
-        self.permissions.add(SpoonPermission.EVENTS_LIKE)
+        # EventStreamを使うために、streamの権限が1つ以上必要なため、EVENTS_CHATを要求
+        self.permissions.add(SpoonPermission.EVENTS_CHAT)
         self.spoon_client_id = os.getenv("SPOON_CLIENT_ID", spoon_client_id)
-        self.spoon_client_secret = os.getenv("SPOON_CLIENR_SECRET", spoon_client_secret)
+        self.spoon_client_secret = os.getenv("SPOON_CLIENT_SECRET", spoon_client_secret)
         self.secret_key = os.getenv("SPOON_SECRET_KEY", secret_key)
         self.oauth_redirect_url = os.getenv(
             "SPOON_OAUTH_REDIRECT_URL", oauth_redirect_url or ""
@@ -80,10 +129,10 @@ class SpoonBot:
         self.bot_operation_page = self._normalize_page_target(bot_operation_page)
 
         assert self.spoon_client_id is not None, "Required SPOON_CLIENT_ID"
-        assert self.spoon_client_secret is not None, "Required SPOON_CLIENR_SECRET"
+        assert self.spoon_client_secret is not None, "Required SPOON_CLIENT_SECRET"
         assert self.secret_key is not None, "Required SPOON_SECRET_KEY"
-        assert len(self.secret_key) > 64, (
-            "SPOON_SECRET_KEY must be at least 64 characters long."
+        assert len(self.secret_key) > 32, (
+            "SPOON_SECRET_KEY must be at least 32 characters long."
         )
         assert len(self.oauth_redirect_url) > 0, "Required SPOON_OAUTH_REDIRECT_URL"
         assert self.target_country is not None, "Required SPOON_BOT_COUNTRY"
@@ -94,12 +143,10 @@ class SpoonBot:
         self.web_application = web.Application()
         self.web_application.on_startup.append(self.startup_function())
         self.web_application.on_cleanup.append(self.cleanup_function())
-        self.spoon_oauth_controller = SpoonOAuthController(self)
-        self.spoon_bot_controller = SpoonBotController(self)
         self.web_application.add_routes(
             [
-                *self.spoon_oauth_controller.get_route(),
-                *self.spoon_bot_controller.get_route(),
+                *SpoonOAuthController(self).get_route(),
+                *SpoonBotController(self).get_route(),
                 *SpoonBotWebController().get_route(),
             ]
         )
@@ -130,9 +177,6 @@ class SpoonBot:
             scope=SPACE.join(self.permissions),
             state=signed_state,
         )
-        # PKCE implementation is required.
-        # However, Spoon developers have not implemented PKCE on their OAuth server.
-        # There’s nothing I can do about this.
         return AuthorizeUrl(url, state)
 
     async def get_authorization(
@@ -151,17 +195,17 @@ class SpoonBot:
 
         token_respons = await self.api_client.get_token(code, self.oauth_redirect_url)
         user_data = await self.api_client.get_token_owner_user(
-            token_respons.access_token
+            token_respons.body.access_token
         )
         epoch_second = int(time.time())
         return SpoonAuthorization(
-            id=user_data.userId,
-            access_token=token_respons.access_token,
-            token_type=token_respons.token_type,
-            expire_at=epoch_second + token_respons.expires_in,
+            id=user_data.body.userId,
+            access_token=token_respons.body.access_token,
+            token_type=token_respons.body.token_type,
+            expire_at=epoch_second + token_respons.body.expires_in,
             refresh_expire_at=epoch_second + DEFAULT_REFRESH_TOKEN_EXPIRES_IN,
-            refresh_token=token_respons.refresh_token,
-            scope=token_respons.scope,
+            refresh_token=token_respons.body.refresh_token,
+            scope=token_respons.body.scope,
             token_status=TokenStatus.DEFAULT,
         )
 
@@ -174,12 +218,12 @@ class SpoonBot:
         epoch_second = int(time.time())
         return SpoonAuthorization(
             id=authorization.id,
-            access_token=token_respons.access_token,
-            token_type=token_respons.token_type,
-            expire_at=epoch_second + token_respons.expires_in,
+            access_token=token_respons.body.access_token,
+            token_type=token_respons.body.token_type,
+            expire_at=epoch_second + token_respons.body.expires_in,
             refresh_expire_at=epoch_second + DEFAULT_REFRESH_TOKEN_EXPIRES_IN,
-            refresh_token=token_respons.refresh_token,
-            scope=token_respons.scope,
+            refresh_token=token_respons.body.refresh_token,
+            scope=token_respons.body.scope,
             token_status=authorization.token_status,
         )
 
@@ -273,6 +317,67 @@ class SpoonBot:
             text.encode("utf-8"),
             hashlib.sha256,
         ).digest()
+
+    @_too_request_handling
+    async def get_live(self, authorization: SpoonAuthorization) -> LiveRoom:
+        result = await self.api_client.get_live(authorization)
+        return LiveRoom.model_validate(result.body.model_dump())
+
+    @_too_request_handling
+    async def get_live_listeners(
+        self, authorization: SpoonAuthorization
+    ) -> ListenerData:
+        result = ListenerData()
+        cursor = None
+        while True:
+            fetch_data = await self.api_client.get_live_listeners(authorization, cursor)
+            result.extend(
+                [
+                    SpoonListener.model_validate(listener.model_dump())
+                    for listener in fetch_data.body.listeners
+                ]
+            )
+            cursor = fetch_data.body.nextCursor
+            if cursor is None:
+                break
+        return result
+
+    @_too_request_handling
+    async def get_live_fans(self, authorization: SpoonAuthorization) -> FanData:
+        result = await self.api_client.get_live_fans(authorization)
+        return FanData.model_validate(result.body.model_dump())
+
+    @_too_request_handling
+    async def get_live_donations(
+        self, authorization: SpoonAuthorization
+    ) -> DonationData:
+        result = DonationData()
+        cursor = None
+        while True:
+            fetch_data = await self.api_client.get_live_donations(authorization, cursor)
+            result.extend(
+                [
+                    Donation.model_validate(listener.model_dump())
+                    for listener in fetch_data.body.donations
+                ]
+            )
+            cursor = fetch_data.body.nextCursor
+            if cursor is None:
+                break
+        return result
+
+    @_too_request_handling
+    async def send_chat(self, message: str, authorization: SpoonAuthorization) -> bool:
+        request_body = ChatSendRequestBody(message=message)
+        if not request_body.valid_message():
+            return False
+        await self.api_client.send_chat(request_body, authorization)
+        return True
+
+    @_too_request_handling
+    async def follow_dj(self, authorization: SpoonAuthorization) -> bool:
+        result = await self.api_client.follow_dj(authorization)
+        return result.body
 
     def _normalize_page_target(self, value: str | None) -> str | None:
         if value is None:

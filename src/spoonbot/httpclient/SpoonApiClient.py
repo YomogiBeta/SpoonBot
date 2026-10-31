@@ -1,13 +1,19 @@
 import base64
+from http import HTTPStatus
 
-from spoonbot.dto.ChatBody import ChatBody
 from spoonbot.dto.SpoonAuthorization import SpoonAuthorization
+from spoonbot.exception.ChatRoomCrowdedException import ChatRoomCrowdedException
 from spoonbot.httpclient.APIClient import APIClient
+from spoonbot.httpclient.dto.APIResponse import APIResponse
+from spoonbot.httpclient.dto.ChatSendRequestBody import ChatSendRequestBody
+from spoonbot.httpclient.dto.DonationResponseDto import DonationResponseDto
 from spoonbot.httpclient.dto.FanResponseDto import FanResponseDto
 from spoonbot.httpclient.dto.ListenersResponseDto import ListenersResponseDto
 from spoonbot.httpclient.dto.LiveRoomDto import LiveRoomDto
 from spoonbot.httpclient.dto.TokenResponse import TokenResponse
 from spoonbot.httpclient.dto.UserDataDto import UserDataDto
+
+TOO_MANY_CHAT_IN_ROOM_CODE = "OAPI_MNGR_0302"
 
 
 class SpoonApiClient(APIClient):
@@ -18,7 +24,9 @@ class SpoonApiClient(APIClient):
         self.client_id = client_id
         self.client_secret = client_secret
 
-    async def get_token(self, code: str, redirect_uri: str) -> TokenResponse:
+    async def get_token(
+        self, code: str, redirect_uri: str
+    ) -> APIResponse[TokenResponse]:
         return await self._post(
             endpoint="oauth/token",
             body={
@@ -30,7 +38,7 @@ class SpoonApiClient(APIClient):
             response_type=TokenResponse,
         )
 
-    async def refresh_token(self, refresh_token: str) -> TokenResponse:
+    async def refresh_token(self, refresh_token: str) -> APIResponse[TokenResponse]:
         return await self._post(
             endpoint="oauth/token",
             body={"grant_type": "refresh_token", "refresh_token": refresh_token},
@@ -38,14 +46,16 @@ class SpoonApiClient(APIClient):
             response_type=TokenResponse,
         )
 
-    async def get_token_owner_user(self, access_token: str) -> UserDataDto:
+    async def get_token_owner_user(self, access_token: str) -> APIResponse[UserDataDto]:
         return await self._get(
             endpoint="me",
             headers={"Authorization": self._authorize_token_by_raw_token(access_token)},
             response_type=UserDataDto,
         )
 
-    async def get_live(self, authorization: SpoonAuthorization) -> LiveRoomDto:
+    async def get_live(
+        self, authorization: SpoonAuthorization
+    ) -> APIResponse[LiveRoomDto]:
         return await self._get(
             endpoint="live",
             headers={"Authorization": self._authorize_token(authorization)},
@@ -53,8 +63,8 @@ class SpoonApiClient(APIClient):
         )
 
     async def get_live_listeners(
-        self, cursor: str | None, authorization: SpoonAuthorization
-    ) -> ListenersResponseDto:
+        self, authorization: SpoonAuthorization, cursor: str | None = None
+    ) -> APIResponse[ListenersResponseDto]:
         return await self._get(
             endpoint="live/listeners",
             queries={"cursor": cursor} if cursor is not None else None,
@@ -62,7 +72,9 @@ class SpoonApiClient(APIClient):
             response_type=ListenersResponseDto,
         )
 
-    async def get_live_fans(self, authorization: SpoonAuthorization) -> FanResponseDto:
+    async def get_live_fans(
+        self, authorization: SpoonAuthorization
+    ) -> APIResponse[FanResponseDto]:
         return await self._get(
             endpoint="live/fans",
             headers={"Authorization": self._authorize_token(authorization)},
@@ -70,28 +82,36 @@ class SpoonApiClient(APIClient):
         )
 
     async def get_live_donations(
-        self, cursor: str | None, authorization: SpoonAuthorization
-    ) -> ListenersResponseDto:
+        self, authorization: SpoonAuthorization, cursor: str | None = None
+    ) -> APIResponse[DonationResponseDto]:
         return await self._get(
             endpoint="live/donations",
             queries={"cursor": cursor} if cursor is not None else None,
             headers={"Authorization": self._authorize_token(authorization)},
-            response_type=ListenersResponseDto,
+            response_type=DonationResponseDto,
         )
 
     async def send_chat(
-        self, chat_body: ChatBody, authorization: SpoonAuthorization
-    ) -> bool:
-        return await self._post_no_content(
-            endpoint="live/chat",
-            body=chat_body.model_dump(),
+        self, chat_body: ChatSendRequestBody, authorization: SpoonAuthorization
+    ) -> APIResponse[bool]:
+        async with self._get_session().post(
+            "live/chat",
+            json=chat_body.model_dump(),
             headers={
                 "Authorization": self._authorize_token(authorization),
                 "Content-Type": "application/json",
             },
-        )
+        ) as response:
+            if response.status == HTTPStatus.TOO_MANY_REQUESTS.value:
+                body = await APIClient.response_body(response)
+                if body is not None:
+                    detail_code = body.get("detailCode")
+                    if detail_code == TOO_MANY_CHAT_IN_ROOM_CODE:
+                        raise ChatRoomCrowdedException()
+            response.raise_for_status()
+            return APIResponse(body=True, headers=response.headers)
 
-    async def follow_dj(self, authorization: SpoonAuthorization) -> bool:
+    async def follow_dj(self, authorization: SpoonAuthorization) -> APIResponse[bool]:
         return await self._post_no_content(
             endpoint="live/follow",
             body=None,

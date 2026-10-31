@@ -11,3 +11,5 @@ class SpoonPermission(StrEnum):
     EVENTS_LIKE = "events.like"
     EVENTS_DONATION = "events.donation"
     CHAT_SEND = "chat.send"
+    DJ_FOLLOW = "dj.follow"
+    DONATIONS_READ = "donations.read"
