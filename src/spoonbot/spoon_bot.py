@@ -111,6 +111,7 @@ class SpoonBot:
         bot_operation_page: str | None = None,
     ):
         print("Started creating Spoonbot.")
+        logger.info("Started creating Spoonbot.")
         self.permissions = permissions or set()
         self.permissions.add(SpoonPermission.READ_ME)
         # EventStreamを使うために、streamの権限が1つ以上必要なため、EVENTS_CHATを要求
@@ -159,6 +160,7 @@ class SpoonBot:
 
     async def init(self):
         print("Started initializing Spoonbot.")
+        logger.info("Started initializing Spoonbot.")
         assert self.spoon_client_id is not None
         assert self.spoon_client_secret is not None
 
@@ -419,6 +421,7 @@ class SpoonBot:
             await self.init()
             web_application["sse_manager"] = self.spoon_event_stream_manager
             print("Start Spoonbot Server!!")
+            logger.info("Start Spoonbot Server!!")
 
         return on_startup
 
