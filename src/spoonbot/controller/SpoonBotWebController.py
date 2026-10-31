@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-from aiohttp.web_exceptions import HTTPNotFound
+from aiohttp.web_exceptions import HTTPFound, HTTPNotFound
 from aiohttp.web_fileresponse import FileResponse
 from aiohttp.web_request import Request
 from aiohttp.web_response import StreamResponse
@@ -19,7 +19,8 @@ def _get_base_dir() -> Path:
     if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent
 
-    return Path(__file__).resolve().parent
+    # src/controller/xxx.py
+    return Path(__file__).resolve().parents[3]
 
 
 PAGES = {
@@ -35,17 +36,22 @@ class SpoonBotWebController:
     def __init__(self) -> None:
         for page in PAGES:
             routes.get(f"/spoonbot/{page}")(self.serve_page)
+        routes.get("/")(self.redirect_spoon_connect)
         routes.static("/assets/", ASSETS_DIR)
 
     @staticmethod
     async def serve_page(request: Request) -> StreamResponse:
-        filename = PAGES[request.path]
+        filename = PAGES[request.path[len("/spoonbot/") :]]
         filepath = ASSETS_DIR / filename
 
         if not filepath.is_file():
             raise HTTPNotFound()
 
         return FileResponse(filepath)
+
+    @staticmethod
+    async def redirect_spoon_connect(_: Request) -> StreamResponse:
+        return HTTPFound("/spoonbot/connect")
 
     def get_route(self) -> RouteTableDef:
         return routes

@@ -109,7 +109,7 @@ class SpoonApiClient(APIClient):
                     if detail_code == TOO_MANY_CHAT_IN_ROOM_CODE:
                         raise ChatRoomCrowdedException()
             response.raise_for_status()
-            return APIResponse(body=True, headers=response.headers)
+            return APIResponse(body=True, headers=response.headers.to_dict())
 
     async def follow_dj(self, authorization: SpoonAuthorization) -> APIResponse[bool]:
         return await self._post_no_content(

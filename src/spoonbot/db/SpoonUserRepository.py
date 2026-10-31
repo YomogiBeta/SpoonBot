@@ -2,6 +2,7 @@ import time
 
 from spoonbot.db.config.MySQLConfig import MySQLConfig
 from spoonbot.db.DatabaseClient import DatabaseClient
+from spoonbot.db.DBType import DBType
 from spoonbot.db.dto.TokenDataDto import SessionDataDto, TokenDataDto
 
 
@@ -16,6 +17,12 @@ class SpoonUserRepository:
         await self.database_client.close()
 
     async def _create_table(self):
+        if self.database_client.get_db_type() == DBType.MYSQL:
+            await self._create_table_for_mysql()
+        else:
+            await self._create_table_for_sqlite()
+
+    async def _create_table_for_mysql(self):
         await self.database_client.execute_cud(
             query="""-- sql
               CREATE TABLE IF NOT EXISTS authorization_spoon_users (
@@ -32,7 +39,7 @@ class SpoonUserRepository:
                   updated_at BIGINT NOT NULL,
                   
                   INDEX idx_expire_at (expire_at),
-                  INDEX idx_expire_at (refresh_expire_at)
+                  INDEX idx_refresh_expire_at (refresh_expire_at)
               )
             """
         )
@@ -53,6 +60,61 @@ class SpoonUserRepository:
                   INDEX idx_authorization_spoon_user_id (authorization_spoon_user_id)
               )
             """
+        )
+
+    async def _create_table_for_sqlite(self):
+        await self.database_client.execute_cud(
+            query="""-- sql
+              CREATE TABLE IF NOT EXISTS authorization_spoon_users (
+                  id VARCHAR(256) PRIMARY KEY,
+                  access_token VARCHAR(256) NOT NULL,
+                  refresh_token VARCHAR(256) NOT NULL,
+                  expire_at BIGINT,
+                  refresh_expire_at BIGINT,
+                  scope VARCHAR(128),
+                  token_type VARCHAR(32),
+                  token_status VARCHAR(32) DEFAULT "DEFAULT",
+                  
+                  created_at BIGINT NOT NULL, 
+                  updated_at BIGINT NOT NULL
+              )
+            """
+        )
+        await self.database_client.execute_cud(
+            """-- sql
+            CREATE INDEX IF NOT EXISTS idx_expire_at ON authorization_spoon_users(expire_at)
+            """  # noqa: E501
+        )
+        await self.database_client.execute_cud(
+            """-- sql
+            CREATE INDEX IF NOT EXISTS idx_refresh_expire_at ON authorization_spoon_users(refresh_expire_at)
+            """  # noqa: E501
+        )
+        await self.database_client.execute_cud(
+            query="""-- sql
+              CREATE TABLE IF NOT EXISTS authorization_spoon_user_sessions (
+                  id BINARY(16) PRIMARY KEY,
+                  authorization_spoon_user_id BINARY(16) NOT NULL,
+                  encoded_session_id BINARY(32) NOT NULL,
+                  csrf_token BINARY(32),
+                  
+                  expires_at BIGINT NOT NULL, 
+                  created_at BIGINT NOT NULL, 
+                  updated_at BIGINT NOT NULL,
+                  FOREIGN KEY (authorization_spoon_user_id) REFERENCES authorization_spoon_users(id)
+              )
+            """  # noqa: E501
+        )
+        await self.database_client.execute_cud(
+            """-- sql
+            CREATE INDEX IF NOT EXISTS idx_encoded_session_id ON authorization_spoon_user_sessions(encoded_session_id);
+            """  # noqa: E501
+        )
+
+        await self.database_client.execute_cud(
+            """-- sql
+            CREATE INDEX IF NOT EXISTS idx_authorization_spoon_user_id ON authorization_spoon_user_sessions(authorization_spoon_user_id);
+            """  # noqa: E501
         )
 
     async def insert_token(self, token: TokenDataDto) -> bool:

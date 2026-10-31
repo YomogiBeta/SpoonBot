@@ -28,9 +28,6 @@ from spoonbot.constants import (
     DEFAULT_SESSION_EXPIRES_IN,
     SPACE,
 )
-from spoonbot.controller.SpoonBotController import SpoonBotController
-from spoonbot.controller.SpoonBotWebController import SpoonBotWebController
-from spoonbot.controller.SpoonOAuthController import SpoonOAuthController
 from spoonbot.db.config.MySQLConfig import MySQLConfig
 from spoonbot.db.dto.TokenDataDto import SessionDataDto, TokenDataDto
 from spoonbot.db.SpoonUserRepository import SpoonUserRepository
@@ -48,7 +45,6 @@ from spoonbot.exception.BurstRequestException import BurstRequestException
 from spoonbot.exception.DailyRequestLimitException import DailyRequestLimitException
 from spoonbot.httpclient.dto.ChatSendRequestBody import ChatSendRequestBody
 from spoonbot.httpclient.SpoonApiClient import SpoonApiClient
-from spoonbot.manager.SpoonEventStreamManager import SpoonEventStreamManager
 from spoonbot.types.callback_types import (
     ChatFuncType,
     DonationFuncType,
@@ -109,11 +105,12 @@ class SpoonBot:
         secret_key: str | None = None,
         oauth_redirect_url: str | None = None,
         country: Country | None = None,
-        port: int | None = None,
+        port: int = 8080,
         mysql_config: MySQLConfig | None = None,
         bot_name: str = "Spoon Bot",
         bot_operation_page: str | None = None,
     ):
+        print("Started creating Spoonbot.")
         self.permissions = permissions or set()
         self.permissions.add(SpoonPermission.READ_ME)
         # EventStreamを使うために、streamの権限が1つ以上必要なため、EVENTS_CHATを要求
@@ -138,8 +135,6 @@ class SpoonBot:
         )
         assert len(self.oauth_redirect_url) > 0, "Required SPOON_OAUTH_REDIRECT_URL"
         assert self.target_country is not None, "Required SPOON_BOT_COUNTRY"
-        assert self.port is not None, "Required SPOON_BOT_PORT"
-        self.port = int(self.port)
 
         self.constants = ConstantsConfig.create(self.target_country)
 
@@ -147,6 +142,12 @@ class SpoonBot:
         self.web_application = web.Application()
         self.web_application.on_startup.append(self.startup_function())
         self.web_application.on_cleanup.append(self.cleanup_function())
+
+        # lazy import
+        from spoonbot.controller.SpoonBotController import SpoonBotController
+        from spoonbot.controller.SpoonBotWebController import SpoonBotWebController
+        from spoonbot.controller.SpoonOAuthController import SpoonOAuthController
+
         self.web_application.add_routes(
             [
                 *SpoonOAuthController(self).get_route(),
@@ -154,17 +155,23 @@ class SpoonBot:
                 *SpoonBotWebController().get_route(),
             ]
         )
-        self.spoon_event_stream_manager = SpoonEventStreamManager(
-            self.web_application, self.api_client, self
-        )
         self.oauth_client = WebApplicationClient(self.spoon_client_id)
 
     async def init(self):
+        print("Started initializing Spoonbot.")
         assert self.spoon_client_id is not None
         assert self.spoon_client_secret is not None
 
         self.api_client = await SpoonApiClient.create(self.constants.api_base_url)
         self.api_client.initialize(self.spoon_client_id, self.spoon_client_secret)
+
+        # lazy import
+        from spoonbot.manager.SpoonEventStreamManager import SpoonEventStreamManager
+
+        self.spoon_event_stream_manager = SpoonEventStreamManager(
+            self.web_application, self.api_client, self
+        )
+
         self.spoon_user_repository = SpoonUserRepository()
         await self.spoon_user_repository.initialize(self.mysql_config)
 
@@ -411,11 +418,15 @@ class SpoonBot:
         async def on_startup(web_application: web.Application):
             await self.init()
             web_application["sse_manager"] = self.spoon_event_stream_manager
+            print("Start Spoonbot Server!!")
 
         return on_startup
 
     def cleanup_function(self):
         async def on_cleanup(web_application: web.Application):
+            # lazy import
+            from spoonbot.manager.SpoonEventStreamManager import SpoonEventStreamManager
+
             manager: SpoonEventStreamManager = web_application["sse_manager"]
             for task in list(manager.tasks.values()):
                 task.cancel()

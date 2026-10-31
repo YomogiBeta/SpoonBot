@@ -49,7 +49,8 @@ class APIClient(ABC):
             raw_json = await self.response_body(response)
             adapter = TypeAdapter(response_type)
             return APIResponse(
-                body=adapter.validate_python(raw_json), headers=response.headers
+                body=adapter.validate_python(raw_json),
+                headers=response.headers.to_dict(),
             )
 
     async def _post(
@@ -64,7 +65,8 @@ class APIClient(ABC):
             raw_json = await self.response_body(response)
             adapter = TypeAdapter(response_type)
             return APIResponse(
-                body=adapter.validate_python(raw_json), headers=response.headers
+                body=adapter.validate_python(raw_json),
+                headers=response.headers.to_dict(),
             )
 
     async def _post_no_content(
@@ -75,7 +77,7 @@ class APIClient(ABC):
     ) -> APIResponse[bool]:
         async with self._session.post(endpoint, json=body, headers=headers) as response:
             response.raise_for_status()
-            return APIResponse(body=True, headers=response.headers)
+            return APIResponse(body=True, headers=response.headers.to_dict())
 
     def _sse_stream(
         self,

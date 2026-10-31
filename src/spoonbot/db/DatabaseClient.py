@@ -2,23 +2,30 @@ from abc import ABC, abstractmethod
 from typing import LiteralString, TypeVar
 
 from spoonbot.db.config.MySQLConfig import MySQLConfig
+from spoonbot.db.DBType import DBType
 from spoonbot.db.dto.UpdateResult import UpdateResult
-from spoonbot.db.mysql.MySQLClient import MySQLClient
-from spoonbot.db.sqlite3.Sqlite3Client import Sqlite3Client
 from spoonbot.db.types import DBValueType
 
 ResponseGenericType = TypeVar("ResponseGenericType")
 
 
 class DatabaseClient(ABC):
+    db_type: DBType
+
+    def __init__(self, db_type: DBType) -> None:
+        self.db_type = db_type
+
     @classmethod
     async def create(cls, config: MySQLConfig | None = None) -> "DatabaseClient":
-        if config is not None:
-            client = Sqlite3Client()
+        # lazy import
+        from spoonbot.db.mysql.MySQLClient import MySQLClient
+        from spoonbot.db.sqlite3.Sqlite3Client import Sqlite3Client
+
+        if config is None:
+            client = Sqlite3Client(DBType.SQLITE3)
             await client.initialize()
             return client
-        assert config is not None
-        client = MySQLClient()
+        client = MySQLClient(DBType.MYSQL)
         await client.initialize(config)
         return client
 
@@ -63,3 +70,6 @@ class DatabaseClient(ABC):
     @abstractmethod
     def placeholder(self, name: LiteralString) -> str:
         pass
+
+    def get_db_type(self) -> DBType:
+        return self.db_type
