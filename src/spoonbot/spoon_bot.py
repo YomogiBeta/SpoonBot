@@ -109,6 +109,7 @@ class SpoonBot:
         secret_key: str | None = None,
         oauth_redirect_url: str | None = None,
         country: Country | None = None,
+        port: int | None = None,
         mysql_config: MySQLConfig | None = None,
         bot_name: str = "Spoon Bot",
         bot_operation_page: str | None = None,
@@ -123,6 +124,7 @@ class SpoonBot:
         self.oauth_redirect_url = os.getenv(
             "SPOON_OAUTH_REDIRECT_URL", oauth_redirect_url or ""
         )
+        self.port = os.getenv("SPOON_BOT_PORT", port)
         self.target_country = Country(os.getenv("SPOON_BOT_COUNTRY", country))
         self.bot_name = os.getenv("SPOON_BOT_NAME", bot_name)
         self.mysql_config = mysql_config
@@ -136,6 +138,8 @@ class SpoonBot:
         )
         assert len(self.oauth_redirect_url) > 0, "Required SPOON_OAUTH_REDIRECT_URL"
         assert self.target_country is not None, "Required SPOON_BOT_COUNTRY"
+        assert self.port is not None, "Required SPOON_BOT_PORT"
+        self.port = int(self.port)
 
         self.constants = ConstantsConfig.create(self.target_country)
 
@@ -423,7 +427,8 @@ class SpoonBot:
         return on_cleanup
 
     def start(self):
-        web.run_app(self.web_application, host="127.0.0.1", port=8080)
+        assert self.port is not None
+        web.run_app(self.web_application, host="127.0.0.1", port=int(self.port))
 
     def chat_event(self, callback: ChatFuncType):
         self.spoon_event_stream_manager.chat_callback_append(callback)
