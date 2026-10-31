@@ -63,12 +63,13 @@ class SpoonEventStreamManager:
         self.spoon_bot = spoon_bot
         self.tasks: dict[str, asyncio.Task] = {}
 
-    async def add_connection(self, authorization: SpoonAuthorization):
+    async def add_connection(self, authorization: SpoonAuthorization) -> bool:
         if authorization.id in self.tasks:
-            return
+            return False
 
         task = asyncio.create_task(self._do_task(authorization))
         self.tasks[authorization.id] = task
+        return True
 
     async def remove_connection(self, client_id: str):
         task = self.tasks.get(client_id)

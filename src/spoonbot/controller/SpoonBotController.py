@@ -52,8 +52,10 @@ class SpoonBotController:
                 raise HTTPUnauthorized()
             if csrf_token is None:
                 raise HTTPForbidden(reason="Bad Request. Need X-CSRF-TOKEN")
-            await self.spoon_bot.start_stream_by_session(session_id, csrf_token)
-            return Response(status=204)
+            result = await self.spoon_bot.start_stream_by_session(
+                session_id, csrf_token
+            )
+            return Response(status=204 if result else 409)
 
         return bot_invite_request
 

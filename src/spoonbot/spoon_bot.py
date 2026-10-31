@@ -227,7 +227,7 @@ class SpoonBot:
             token_status=authorization.token_status,
         )
 
-    async def start_stream_by_session(self, session_id: str, x_csrf_token: str):
+    async def start_stream_by_session(self, session_id: str, x_csrf_token: str) -> bool:
         encoded_session_id = self._hmac_sha256(session_id)
         result = await self.spoon_user_repository.get_token_data_by_session_id(
             encoded_session_id
@@ -251,7 +251,7 @@ class SpoonBot:
         )
         if authorization.end_refresh_token():
             raise HTTPUnauthorized(reason="UnAuthorization: refresh token is invalid")
-        await self.spoon_event_stream_manager.add_connection(authorization)
+        return await self.spoon_event_stream_manager.add_connection(authorization)
 
     async def save_authorization(
         self, authorization: SpoonAuthorization, force_refresh: bool = False
