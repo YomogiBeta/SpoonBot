@@ -8,7 +8,6 @@ from pydantic import TypeAdapter
 
 from spoonbot.db.config.MySQLConfig import MySQLConfig
 from spoonbot.db.DatabaseClient import DatabaseClient, ResponseGenericType
-from spoonbot.db.dto.UpdateResult import UpdateResult
 from spoonbot.db.types import DBValueType
 
 POOL_MIN_SIZE = 2
@@ -126,7 +125,7 @@ class MySQLClient(DatabaseClient):
         self,
         query: str,
         args: dict[str, DBValueType] | None = None,
-    ) -> UpdateResult:
+    ) -> int:
         if args is None:
             args = {}
 
@@ -135,13 +134,13 @@ class MySQLClient(DatabaseClient):
         if in_tx_conn is not None:
             async with in_tx_conn.cursor() as cursor:
                 await cursor.execute(query, args)
-                return UpdateResult(cursor.lastrowid, cursor.rowcount)
+                return cursor.rowcount
         else:
             async with self.pool.acquire() as connection:
                 async with connection.cursor() as cursor:
                     await cursor.execute(query, args)
                     await connection.commit()
-                    return UpdateResult(cursor.lastrowid, cursor.rowcount)
+                    return cursor.rowcount
 
     def placeholder(self, name: LiteralString) -> str:
         return f"%({name})s"

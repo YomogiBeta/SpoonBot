@@ -32,7 +32,7 @@
         貴方の枠に<span class="bot-name"></span>ボットを招待します。今後も<span class="bot-name"></span>ボットを招待したいときは、本URLからいつでも可能です。
       </p>
 
-      <a href="/bot/invite" class="invite-primary-button">
+      <button type="button" id="invite-button" class="invite-primary-button">
         <span>今すぐbotを招待する<strong>(ライブ配信開始後に招待してください)</strong></span>
         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path
@@ -43,9 +43,9 @@
             stroke-linejoin="round"
           />
         </svg>
-      </a>
+      </button>
 
-      <a href="/bot" class="invite-secondary-button">
+      <a href="#" id="bot-operation-page" class="invite-secondary-button hidden">
         bot専用ページへ
       </a>
 						<button

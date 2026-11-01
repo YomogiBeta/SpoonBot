@@ -7,7 +7,6 @@ import aiosqlite
 from pydantic import TypeAdapter
 
 from spoonbot.db.DatabaseClient import DatabaseClient, ResponseGenericType
-from spoonbot.db.dto.UpdateResult import UpdateResult
 from spoonbot.db.types import DBValueType
 
 _current_sqlite_conn: ContextVar[aiosqlite.Connection | None] = ContextVar(
@@ -21,6 +20,7 @@ class Sqlite3Client(DatabaseClient):
 
     async def initialize(self) -> None:
         self.connection = await aiosqlite.connect(self.db_path, isolation_level=None)
+        self.connection.row_factory = aiosqlite.Row
         await self.connection.execute("PRAGMA journal_mode=WAL;")
 
     async def close(self) -> None:
@@ -48,14 +48,14 @@ class Sqlite3Client(DatabaseClient):
             if result is None:
                 return None
             adapter = TypeAdapter(response_type)
-            return adapter.validate_python(result)
+            return adapter.validate_python(dict(result))
 
     async def execute_many(
         self,
         query: str,
         args: dict[str, DBValueType] | None = None,
         response_type: type[ResponseGenericType] | None = None,
-    ) -> ResponseGenericType | None:
+    ) -> list[ResponseGenericType] | None:
         if args is None:
             args = {}
 
@@ -65,7 +65,7 @@ class Sqlite3Client(DatabaseClient):
             if results is None:
                 return None
             adapter = TypeAdapter(response_type)
-            return adapter.validate_python(results)
+            return [adapter.validate_python(dict(row)) for row in results]
 
     @asynccontextmanager
     async def transaction(self):
@@ -99,13 +99,13 @@ class Sqlite3Client(DatabaseClient):
         self,
         query: str,
         args: dict[str, DBValueType] | None = None,
-    ) -> UpdateResult:
+    ) -> int:
         if args is None:
             args = {}
 
         conn = self._get_connection()
         async with conn.execute(query, args) as cursor:
-            return UpdateResult(cursor.lastrowid, cursor.rowcount)
+            return cursor.rowcount
 
     def placeholder(self, name: LiteralString) -> str:
         return f":{name}"

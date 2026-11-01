@@ -146,7 +146,7 @@ class SpoonUserRepository:
             args=token.model_dump()
             | {"created_at": epoch_seconds, "updated_at": epoch_seconds},
         )
-        return result.inserted_count == 1
+        return result == 1
 
     async def update_token(self, token: TokenDataDto):
         epoch_seconds = int(time.time())
@@ -160,12 +160,12 @@ class SpoonUserRepository:
                     scope = {self.database_client.placeholder("scope")},
                     token_type = {self.database_client.placeholder("scope")},
                     updated_at = {self.database_client.placeholder("updated_at")}
-                    WHERE id = {self.database_client.placeholder("id")},
+                    WHERE id = {self.database_client.placeholder("id")}
                     LIMIT 1
                     """,  # noqa: E501
             args=token.model_dump() | {"updated_at": epoch_seconds},
         )
-        return result.updated_count == 1
+        return result == 1
 
     async def get_token_data(self, id: str) -> TokenDataDto | None:
         return await self.database_client.execute_one(
@@ -193,7 +193,7 @@ class SpoonUserRepository:
         return await self.database_client.execute_one(
             query=f"""-- sql
             SELECT 
-                id,
+                user.id as id,
                 access_token,
                 refresh_token,
                 expire_at,
@@ -237,7 +237,7 @@ class SpoonUserRepository:
             args=session_data.model_dump()
             | {"created_at": epoch_seconds, "updated_at": epoch_seconds},
         )
-        return result.inserted_count == 1
+        return result == 1
 
     async def get_session_data(
         self, encoded_session_id: bytes
@@ -266,7 +266,7 @@ class SpoonUserRepository:
             UPDATE authorization_spoon_user_sessions
             SET csrf_token = {self.database_client.placeholder("csrf_token")},
             updated_at = {self.database_client.placeholder("updated_at")}
-            WHERE id = {self.database_client.placeholder("encoded_session_id")}
+            WHERE encoded_session_id = {self.database_client.placeholder("encoded_session_id")}
             LIMIt 1
             """,
             args={
@@ -275,4 +275,4 @@ class SpoonUserRepository:
                 "updated_at": epoch_seconds,
             },
         )
-        return result.updated_count == 1
+        return result == 1

@@ -1,10 +1,10 @@
 import asyncio
+import inspect
 import json
 import logging
 import random
 import time
 from http import HTTPStatus
-from importlib.metadata.diagnose import inspect
 from typing import Any
 
 from aiohttp import ClientConnectionError, ClientPayloadError, ClientResponseError, web
@@ -48,20 +48,24 @@ logger = logging.getLogger(__name__)
 class SpoonEventStreamManager:
     api_client: SpoonApiClient
     spoon_bot: SpoonBot
-    chat_callbacks: list[ChatFuncType]
-    presence_callbacks: list[PresenceFuncType]
-    like_callbacks: list[LikeFuncType]
-    donation_callbacks: list[DonationFuncType]
-    follow_callbacks: list[FollowFuncType]
-    end_callbacks: list[EndFuncType]
+    chat_callbacks: list[ChatFuncType] = []
+    presence_callbacks: list[PresenceFuncType] = []
+    like_callbacks: list[LikeFuncType] = []
+    donation_callbacks: list[DonationFuncType] = []
+    follow_callbacks: list[FollowFuncType] = []
+    end_callbacks: list[EndFuncType] = []
 
     def __init__(
+        self,
+    ):
+        self.tasks: dict[str, asyncio.Task] = {}
+
+    async def init(
         self, app: web.Application, api_client: SpoonApiClient, spoon_bot: SpoonBot
     ):
         self.app = app
         self.api_client = api_client
         self.spoon_bot = spoon_bot
-        self.tasks: dict[str, asyncio.Task] = {}
 
     async def add_connection(self, authorization: SpoonAuthorization) -> bool:
         if authorization.id in self.tasks:
@@ -255,6 +259,8 @@ class SpoonEventStreamManager:
                     continue
                 except NonRetryException as exception:
                     raise exception
+        except NonRetryException:
+            pass
         except Exception as exception:
             logger.exception(
                 "The stream connection was stopped due to an error: %s", exception

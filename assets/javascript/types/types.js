@@ -4,4 +4,10 @@
  * @property {string} page
  */
 
+/**
+ * @typedef {Object} CsrfToken
+ * @property {string} csrf_token
+ */
+
+
 export {};

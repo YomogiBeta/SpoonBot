@@ -3,7 +3,6 @@ from typing import LiteralString, TypeVar
 
 from spoonbot.db.config.MySQLConfig import MySQLConfig
 from spoonbot.db.DBType import DBType
-from spoonbot.db.dto.UpdateResult import UpdateResult
 from spoonbot.db.types import DBValueType
 
 ResponseGenericType = TypeVar("ResponseGenericType")
@@ -64,7 +63,7 @@ class DatabaseClient(ABC):
         self,
         query: str,
         args: dict[str, DBValueType] | None = None,
-    ) -> UpdateResult:
+    ) -> int:
         pass
 
     @abstractmethod

@@ -293,3 +293,7 @@
   outline: 2px solid #111;
   outline-offset: 3px;
 }
+
+.hidden {
+  display: none;
+}

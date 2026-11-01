@@ -9,7 +9,7 @@ import time
 from functools import wraps
 from http import HTTPStatus
 from typing import Callable
-from urllib.parse import parse_qsl, urlencode, urlparse, urlsplit, urlunsplit
+from urllib.parse import urlparse
 
 import uuid_utils as uuid
 from aiohttp import ClientResponseError, web
@@ -151,6 +151,9 @@ class SpoonBot:
         from spoonbot.controller.SpoonBotController import SpoonBotController
         from spoonbot.controller.SpoonBotWebController import SpoonBotWebController
         from spoonbot.controller.SpoonOAuthController import SpoonOAuthController
+        from spoonbot.manager.SpoonEventStreamManager import SpoonEventStreamManager
+
+        self.spoon_event_stream_manager = SpoonEventStreamManager()
 
         self.web_application.add_routes(
             [
@@ -170,10 +173,7 @@ class SpoonBot:
         self.api_client = await SpoonApiClient.create(self.constants.api_base_url)
         self.api_client.initialize(self.spoon_client_id, self.spoon_client_secret)
 
-        # lazy import
-        from spoonbot.manager.SpoonEventStreamManager import SpoonEventStreamManager
-
-        self.spoon_event_stream_manager = SpoonEventStreamManager(
+        await self.spoon_event_stream_manager.init(
             self.web_application, self.api_client, self
         )
 
@@ -192,19 +192,6 @@ class SpoonBot:
             redirect_url=self.oauth_redirect_url,
             scope=list(self.permissions),
             state=signed_state,
-        )
-
-        parts = urlsplit(url)
-        params = parse_qsl(parts.query)
-        query = urlencode(params).replace("+", "%20")
-        url = urlunsplit(
-            (
-                parts.scheme,
-                parts.netloc,
-                parts.path,
-                query,
-                parts.fragment,
-            )
         )
         return AuthorizeUrl(url, state)
 
@@ -334,7 +321,7 @@ class SpoonBot:
     async def regenerate_csrf_token(self, session_id: str) -> str:
         csrf_token = secrets.token_urlsafe(32)
         success = await self.spoon_user_repository.update_csrf_token(
-            self._hmac_sha256(session_id), csrf_token.encode("utg-8")
+            self._hmac_sha256(session_id), csrf_token.encode("utf-8")
         )
         if not success:
             logger.error("Failed to update the CSRF token in the database.")
@@ -446,7 +433,6 @@ class SpoonBot:
     def cleanup_function(self):
         async def on_cleanup(web_application: web.Application):
             # lazy import
-            from spoonbot.manager.SpoonEventStreamManager import SpoonEventStreamManager
 
             manager: SpoonEventStreamManager = web_application["sse_manager"]
             for task in list(manager.tasks.values()):
