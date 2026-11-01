@@ -433,6 +433,7 @@ class SpoonBot:
     def cleanup_function(self):
         async def on_cleanup(web_application: web.Application):
             # lazy import
+            from spoonbot.manager.SpoonEventStreamManager import SpoonEventStreamManager
 
             manager: SpoonEventStreamManager = web_application["sse_manager"]
             for task in list(manager.tasks.values()):
