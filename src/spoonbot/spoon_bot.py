@@ -9,7 +9,7 @@ import time
 from functools import wraps
 from http import HTTPStatus
 from typing import Callable
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlsplit, urlunsplit
 
 import uuid_utils as uuid
 from aiohttp import ClientResponseError, web
@@ -26,7 +26,6 @@ from spoonbot.config.ConstantsConfig import ConstantsConfig
 from spoonbot.constants import (
     DEFAULT_REFRESH_TOKEN_EXPIRES_IN,
     DEFAULT_SESSION_EXPIRES_IN,
-    SPACE,
 )
 from spoonbot.db.config.MySQLConfig import MySQLConfig
 from spoonbot.db.dto.TokenDataDto import SessionDataDto, TokenDataDto
@@ -113,9 +112,13 @@ class SpoonBot:
         print("Started creating Spoonbot.")
         logger.info("Started creating Spoonbot.")
         self.permissions = permissions or set()
-        self.permissions.add(SpoonPermission.READ_ME)
         # EventStreamを使うために、streamの権限が1つ以上必要なため、EVENTS_CHATを要求
         self.permissions.add(SpoonPermission.EVENTS_CHAT)
+        # トークン管理の際に連携者の情報を取得する必要があるので、READ_MEを要求
+        self.permissions.add(SpoonPermission.READ_ME)
+        # ユーザーへのFeedback手段がチャット送信しかないため、CHAT_SENDを要求
+        self.permissions.add(SpoonPermission.CHAT_SEND)
+
         self.spoon_client_id = os.getenv("SPOON_CLIENT_ID", spoon_client_id)
         self.spoon_client_secret = os.getenv("SPOON_CLIENT_SECRET", spoon_client_secret)
         self.secret_key = os.getenv("SPOON_SECRET_KEY", secret_key)
@@ -187,8 +190,21 @@ class SpoonBot:
         url, _, _ = self.oauth_client.prepare_authorization_request(
             self.constants.oauth_authorize_base_url,
             redirect_url=self.oauth_redirect_url,
-            scope=SPACE.join(self.permissions),
+            scope=list(self.permissions),
             state=signed_state,
+        )
+
+        parts = urlsplit(url)
+        params = parse_qsl(parts.query)
+        query = urlencode(params).replace("+", "%20")
+        url = urlunsplit(
+            (
+                parts.scheme,
+                parts.netloc,
+                parts.path,
+                query,
+                parts.fragment,
+            )
         )
         return AuthorizeUrl(url, state)
 
@@ -202,8 +218,10 @@ class SpoonBot:
         if state is None or len(state) <= 0:
             raise HTTPUnauthorized(reason="UnAuthorization:  state is none or empty")
 
-        state_of_session = self.signer.unsign(signed_state or "", max_age=60 * 3)
-        if state != state_of_session:
+        state_of_parameter = self.signer.unsign(
+            signed_state or "", max_age=60 * 3
+        ).decode("utf-8")
+        if state != state_of_parameter:
             raise HTTPForbidden(reason="Forbidden: Invalid state parameter.")
 
         token_respons = await self.api_client.get_token(code, self.oauth_redirect_url)

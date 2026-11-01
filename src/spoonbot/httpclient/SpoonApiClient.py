@@ -27,7 +27,7 @@ class SpoonApiClient(APIClient):
     async def get_token(
         self, code: str, redirect_uri: str
     ) -> APIResponse[TokenResponse]:
-        return await self._post(
+        return await self._post_form(
             endpoint="oauth/token",
             body={
                 "grant_type": "authorization_code",
@@ -39,7 +39,7 @@ class SpoonApiClient(APIClient):
         )
 
     async def refresh_token(self, refresh_token: str) -> APIResponse[TokenResponse]:
-        return await self._post(
+        return await self._post_form(
             endpoint="oauth/token",
             body={"grant_type": "refresh_token", "refresh_token": refresh_token},
             headers={"Authorization": self._authorize_client_token()},

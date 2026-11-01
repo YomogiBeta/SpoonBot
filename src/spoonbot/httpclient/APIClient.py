@@ -69,6 +69,22 @@ class APIClient(ABC):
                 headers=response.headers.to_dict(),
             )
 
+    async def _post_form(
+        self,
+        endpoint: str,
+        body: Any,
+        response_type: type[ResponseGenericType],
+        headers: dict[str, str] | None = None,
+    ) -> APIResponse[ResponseGenericType]:
+        async with self._session.post(endpoint, data=body, headers=headers) as response:
+            response.raise_for_status()
+            raw_json = await self.response_body(response)
+            adapter = TypeAdapter(response_type)
+            return APIResponse(
+                body=adapter.validate_python(raw_json),
+                headers=response.headers.to_dict(),
+            )
+
     async def _post_no_content(
         self,
         endpoint: str,

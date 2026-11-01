@@ -121,7 +121,7 @@ class SpoonUserRepository:
         epoch_seconds = int(time.time())
         result = await self.database_client.execute_cud(
             query=f"""-- sql
-            INSERT INTO authorization_spoon_users (
+            INSERT INTO authorization_spoon_users(
                 id,
                 access_token,
                 refresh_token,
@@ -131,7 +131,7 @@ class SpoonUserRepository:
                 token_type,
                 created_at,
                 updated_at
-            ) VALUES (
+            ) VALUES(
                 {self.database_client.placeholder("id")},
                 {self.database_client.placeholder("access_token")},
                 {self.database_client.placeholder("refresh_token")},
@@ -140,7 +140,7 @@ class SpoonUserRepository:
                 {self.database_client.placeholder("scope")},
                 {self.database_client.placeholder("token_type")},
                 {self.database_client.placeholder("created_at")},
-                {self.database_client.placeholder("updated_at")},
+                {self.database_client.placeholder("updated_at")}
             )
             """,
             args=token.model_dump()
@@ -178,8 +178,7 @@ class SpoonUserRepository:
                 refresh_expire_at,
                 scope,
                 token_type,
-                token_status,
-                csrf_token
+                token_status
             FROM authorization_spoon_users
             WHERE id = {self.database_client.placeholder("id")}
             LIMIT 1
@@ -217,7 +216,7 @@ class SpoonUserRepository:
         epoch_seconds = int(time.time())
         result = await self.database_client.execute_cud(
             query=f"""-- sql
-            INSERT INTO authorization_spoon_user_sessions (
+            INSERT INTO authorization_spoon_user_sessions(
                 id,
                 authorization_spoon_user_id,
                 encoded_session_id,
@@ -225,14 +224,14 @@ class SpoonUserRepository:
                 expires_at,
                 created_at,
                 updated_at
-            ) VALUES (
+            ) VALUES(
                 {self.database_client.placeholder("id")},
                 {self.database_client.placeholder("authorization_spoon_user_id")},
                 {self.database_client.placeholder("encoded_session_id")},
                 {self.database_client.placeholder("csrf_token")},
                 {self.database_client.placeholder("expires_at")},
                 {self.database_client.placeholder("created_at")},
-                {self.database_client.placeholder("updated_at")},
+                {self.database_client.placeholder("updated_at")}
             )
             """,
             args=session_data.model_dump()

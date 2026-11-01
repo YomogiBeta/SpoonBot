@@ -1,3 +1,5 @@
+import logging
+
 from aiohttp.web_exceptions import HTTPFound
 from aiohttp.web_request import Request
 from aiohttp.web_routedef import RouteTableDef
@@ -7,6 +9,7 @@ from spoonbot.spoon_bot import SpoonBot
 
 routes = RouteTableDef()
 SIGNED_STATE_KEY = "signed_state"
+logger = logging.getLogger(__name__)
 
 
 class SpoonOAuthController:
@@ -39,12 +42,12 @@ class SpoonOAuthController:
     def get_token_via_oauth_handler(self):
         async def get_token_via_oauth(request: Request):
             code = request.query.get("code")
-            returned_state = request.query.get("state")
-            signed_state = request.cookies.get(SIGNED_STATE_KEY)
+            signed_state = request.query.get("state")
+            cookie_state = request.cookies.get(SIGNED_STATE_KEY)
 
             try:
                 auth = await self.spoon_bot.get_authorization(
-                    code, returned_state, signed_state
+                    code, cookie_state, signed_state
                 )
                 await self.spoon_bot.save_authorization(auth)
                 session_id = await self.spoon_bot.save_session(auth)
@@ -61,7 +64,8 @@ class SpoonOAuthController:
                 )
 
                 return response
-            except Exception:
+            except Exception as exception:
+                logger.exception(exception)
                 response = HTTPFound(location="/spoonbot/fail")
                 response.del_cookie(SIGNED_STATE_KEY)
                 return response
