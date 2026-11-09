@@ -3,6 +3,9 @@ from http import HTTPStatus
 
 from spoonbot.dto.SpoonAuthorization import SpoonAuthorization
 from spoonbot.exception.ChatRoomCrowdedException import ChatRoomCrowdedException
+from spoonbot.exception.MessageSendUnavailableException import (
+    MessageSendUnavailableException,
+)
 from spoonbot.httpclient.APIClient import APIClient
 from spoonbot.httpclient.dto.APIResponse import APIResponse
 from spoonbot.httpclient.dto.ChatSendRequestBody import ChatSendRequestBody
@@ -14,6 +17,7 @@ from spoonbot.httpclient.dto.TokenResponse import TokenResponse
 from spoonbot.httpclient.dto.UserDataDto import UserDataDto
 
 TOO_MANY_CHAT_IN_ROOM_CODE = "OAPI_MNGR_0302"
+CHAT_BLOCKING_CODE = "OAPI_MNGR_0208"
 
 
 class SpoonApiClient(APIClient):
@@ -102,12 +106,17 @@ class SpoonApiClient(APIClient):
                 "Content-Type": "application/json",
             },
         ) as response:
+            body = await APIClient.response_body(response)
             if response.status == HTTPStatus.TOO_MANY_REQUESTS.value:
-                body = await APIClient.response_body(response)
                 if body is not None:
                     detail_code = body.get("detailCode")
                     if detail_code == TOO_MANY_CHAT_IN_ROOM_CODE:
                         raise ChatRoomCrowdedException()
+            if response.status == HTTPStatus.FORBIDDEN:
+                if body is not None:
+                    detail_code = body.get("detailCode")
+                    if detail_code == CHAT_BLOCKING_CODE:
+                        raise MessageSendUnavailableException()
             response.raise_for_status()
             return APIResponse(body=True, headers=response.headers.to_dict())
 
