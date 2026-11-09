@@ -31,7 +31,7 @@ class SpoonUserRepository:
                   refresh_token VARCHAR(256) NOT NULL,
                   expire_at BIGINT,
                   refresh_expire_at BIGINT,
-                  scope VARCHAR(128),
+                  scope VARCHAR(512),
                   token_type VARCHAR(32),
                   token_status VARCHAR(32) DEFAULT "DEFAULT",
                   
@@ -49,7 +49,7 @@ class SpoonUserRepository:
                   id BINARY(16) PRIMARY KEY,
                   authorization_spoon_user_id VARCHAR(256) NOT NULL,
                   encoded_session_id BINARY(32) NOT NULL,
-                  csrf_token BINARY(32),
+                  csrf_token VARCHAR(64),
                   
                   expires_at BIGINT NOT NULL, 
                   created_at BIGINT NOT NULL, 
@@ -71,7 +71,7 @@ class SpoonUserRepository:
                   refresh_token VARCHAR(256) NOT NULL,
                   expire_at BIGINT,
                   refresh_expire_at BIGINT,
-                  scope VARCHAR(128),
+                  scope VARCHAR(512),
                   token_type VARCHAR(32),
                   token_status VARCHAR(32) DEFAULT "DEFAULT",
                   
@@ -96,7 +96,7 @@ class SpoonUserRepository:
                   id BINARY(16) PRIMARY KEY,
                   authorization_spoon_user_id VARCHAR(256) NOT NULL,
                   encoded_session_id BINARY(32) NOT NULL,
-                  csrf_token BINARY(32),
+                  csrf_token VARCHAR(64),
                   
                   expires_at BIGINT NOT NULL, 
                   created_at BIGINT NOT NULL, 
@@ -158,7 +158,7 @@ class SpoonUserRepository:
                     expire_at =  {self.database_client.placeholder("expire_at")},
                     refresh_expire_at =  {self.database_client.placeholder("expire_at")},
                     scope = {self.database_client.placeholder("scope")},
-                    token_type = {self.database_client.placeholder("scope")},
+                    token_type = {self.database_client.placeholder("token_type")},
                     updated_at = {self.database_client.placeholder("updated_at")}
                     WHERE id = {self.database_client.placeholder("id")}
                     LIMIT 1
@@ -268,7 +268,7 @@ class SpoonUserRepository:
             updated_at = {self.database_client.placeholder("updated_at")}
             WHERE encoded_session_id = {self.database_client.placeholder("encoded_session_id")}
             LIMIt 1
-            """,
+            """,  # noqa: E501
             args={
                 "encoded_session_id": encoded_session_id,
                 "csrf_token": csrf_token,

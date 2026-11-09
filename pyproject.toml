@@ -16,6 +16,10 @@ dependencies = [
     "uuid-utils>=1.0.0",
     "itsdangerous>=2.2.0",
     "aiohttp-sse-client2>=0.3.0",
+
+    # https://github.com/aio-libs/aiomysql/issues/1080
+    # https://github.com/aio-libs/aiomysql/pull/1081
+    "PyMySQL<=1.2.0"
 ]
 
 [project.optional-dependencies]
