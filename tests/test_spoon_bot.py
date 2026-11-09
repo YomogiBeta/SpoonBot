@@ -1040,6 +1040,7 @@ class EventRegistrationTest(SyncBotTest):
             (self.bot.like_event, self.event_stream_manager.like_callback_append),
             (self.bot.gift_event, self.event_stream_manager.donation_callback_append),
             (self.bot.follow_event, self.event_stream_manager.follow_callback_append),
+            (self.bot.end_event, self.event_stream_manager.end_callback_append),
         ]
 
         for register, append in cases:

@@ -47,6 +47,7 @@ from spoonbot.httpclient.SpoonApiClient import SpoonApiClient
 from spoonbot.types.callback_types import (
     ChatFuncType,
     DonationFuncType,
+    EndFuncType,
     FollowFuncType,
     LikeFuncType,
     PresenceFuncType,
@@ -463,3 +464,6 @@ class SpoonBot:
 
     def follow_event(self, callback: FollowFuncType):
         self.spoon_event_stream_manager.follow_callback_append(callback)
+
+    def end_event(self, callback: EndFuncType):
+        self.spoon_event_stream_manager.end_callback_append(callback)
