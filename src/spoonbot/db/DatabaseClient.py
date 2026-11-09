@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import LiteralString, TypeVar
+from contextlib import AbstractAsyncContextManager
+from typing import Any, LiteralString, TypeVar
 
 from spoonbot.db.config.MySQLConfig import MySQLConfig
 from spoonbot.db.DBType import DBType
@@ -51,11 +52,11 @@ class DatabaseClient(ABC):
         query: str,
         args: dict[str, DBValueType] | None = None,
         response_type: type[ResponseGenericType] | None = None,
-    ) -> ResponseGenericType | None:
+    ) -> list[ResponseGenericType] | None:
         pass
 
     @abstractmethod
-    async def transaction(self):
+    def transaction(self) -> AbstractAsyncContextManager[Any]:
         pass
 
     @abstractmethod

@@ -1,7 +1,7 @@
 import uuid
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
-from typing import LiteralString
+from typing import AsyncGenerator, LiteralString
 
 import aiomysql
 from pydantic import TypeAdapter
@@ -79,7 +79,7 @@ class MySQLClient(DatabaseClient):
         query: str,
         args: dict[str, DBValueType] | None = None,
         response_type: type[ResponseGenericType] | None = None,
-    ) -> ResponseGenericType | None:
+    ) -> list[ResponseGenericType] | None:
         if args is None:
             args = {}
 
@@ -93,7 +93,7 @@ class MySQLClient(DatabaseClient):
                 return adapter.validate_python(results)
 
     @asynccontextmanager
-    async def transaction(self):
+    async def transaction(self) -> AsyncGenerator[aiomysql.Connection, None]:
         existing_conn = _current_connection.get()
 
         if existing_conn is not None:

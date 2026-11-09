@@ -1,7 +1,7 @@
 import uuid
 from contextlib import asynccontextmanager
 from contextvars import ContextVar
-from typing import LiteralString
+from typing import AsyncGenerator, LiteralString
 
 import aiosqlite
 from pydantic import TypeAdapter
@@ -68,7 +68,7 @@ class Sqlite3Client(DatabaseClient):
             return [adapter.validate_python(dict(row)) for row in results]
 
     @asynccontextmanager
-    async def transaction(self):
+    async def transaction(self) -> AsyncGenerator[aiosqlite.Connection, None]:
         existing_conn = _current_sqlite_conn.get()
 
         if existing_conn is not None:
