@@ -1,8 +1,6 @@
-PYTHON ?= .venv/bin/python
-
 .PHONY: test
 test:
-	$(PYTHON) -m unittest discover -s tests -v
+	uv run python -m unittest discover -s tests -v
 
 up:
 	docker compose up -d
