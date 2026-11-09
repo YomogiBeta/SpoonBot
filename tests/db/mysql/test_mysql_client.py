@@ -118,9 +118,10 @@ class InitializeTest(MySQLClientTestBase):
     async def test_initialize_creates_pool_with_config(self) -> None:
         config = MySQLConfig(
             host="db.example.com",
+            port=3307,
             user="spoon",
             password="secret",
-            database="spoon_bot",
+            database="test_spoon_bot",
             charset="utf8mb4",
         )
 
@@ -135,14 +136,44 @@ class InitializeTest(MySQLClientTestBase):
         self.assertIs(client.pool, self.pool)
         create_pool.assert_awaited_once_with(
             host="db.example.com",
+            port=3307,
             user="spoon",
             password="secret",
-            database="spoon_bot",
+            db="test_spoon_bot",
             charset="utf8mb4",
-            minsize=POOL_MIN_SIZE,
-            maxsize=POOL_MAX_SIZE,
             autocommit=False,
             cursorclass=aiomysql.DictCursor,
+            minsize=POOL_MIN_SIZE,
+            maxsize=POOL_MAX_SIZE,
+        )
+
+    async def test_initialize_uses_config_defaults(self) -> None:
+        config = MySQLConfig(
+            host="127.0.0.1",
+            port=3306,
+            user="spoon",
+            password="secret",
+        )
+
+        with patch.object(
+            aiomysql,
+            "create_pool",
+            new=AsyncMock(return_value=self.pool),
+        ) as create_pool:
+            client = MySQLClient(DBType.MYSQL)
+            await client.initialize(config)
+
+        create_pool.assert_awaited_once_with(
+            host="127.0.0.1",
+            port=3306,
+            user="spoon",
+            password="secret",
+            db="spoon_bot",
+            charset="utf8mb4",
+            autocommit=False,
+            cursorclass=aiomysql.DictCursor,
+            minsize=POOL_MIN_SIZE,
+            maxsize=POOL_MAX_SIZE,
         )
 
 

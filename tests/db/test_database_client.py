@@ -27,6 +27,7 @@ class CreateTest(unittest.IsolatedAsyncioTestCase):
     async def test_create_with_config_creates_mysql_client(self) -> None:
         config = MySQLConfig(
             host="db.example.com",
+            port=3306,
             user="spoon",
             password="secret",
             database="spoon_bot",

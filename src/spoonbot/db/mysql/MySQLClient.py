@@ -27,14 +27,15 @@ class MySQLClient(DatabaseClient):
     ) -> None:
         self.pool = await aiomysql.create_pool(
             host=config.host,
+            port=config.port,
             user=config.user,
             password=config.password,
-            database=config.database,
+            db=config.database,
             charset=config.charset,
-            minsize=POOL_MIN_SIZE,
-            maxsize=POOL_MAX_SIZE,
             autocommit=False,
             cursorclass=aiomysql.DictCursor,
+            minsize=POOL_MIN_SIZE,
+            maxsize=POOL_MAX_SIZE,
         )
 
     async def close(self) -> None:

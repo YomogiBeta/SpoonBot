@@ -47,7 +47,7 @@ class SpoonUserRepository:
             query="""-- sql
               CREATE TABLE IF NOT EXISTS authorization_spoon_user_sessions (
                   id BINARY(16) PRIMARY KEY,
-                  authorization_spoon_user_id BINARY(16) NOT NULL,
+                  authorization_spoon_user_id VARCHAR(256) NOT NULL,
                   encoded_session_id BINARY(32) NOT NULL,
                   csrf_token BINARY(32),
                   
@@ -94,7 +94,7 @@ class SpoonUserRepository:
             query="""-- sql
               CREATE TABLE IF NOT EXISTS authorization_spoon_user_sessions (
                   id BINARY(16) PRIMARY KEY,
-                  authorization_spoon_user_id BINARY(16) NOT NULL,
+                  authorization_spoon_user_id VARCHAR(256) NOT NULL,
                   encoded_session_id BINARY(32) NOT NULL,
                   csrf_token BINARY(32),
                   

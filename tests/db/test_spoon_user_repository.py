@@ -105,6 +105,7 @@ class InitializeTest(SpoonUserRepositoryTestBase):
     async def test_initialize_creates_mysql_tables(self) -> None:
         config = MySQLConfig(
             host="db.example.com",
+            port=3306,
             user="spoon",
             password="secret",
         )
