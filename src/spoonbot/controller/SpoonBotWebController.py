@@ -13,14 +13,15 @@ routes = RouteTableDef()
 def _get_base_dir() -> Path:
     # PyInstaller などで実行ファイル化されている場合
     meipass = getattr(sys, "_MEIPASS", None)
+
     if meipass is not None:
         return Path(meipass)
 
     if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent
 
-    # src/controller/xxx.py
-    return Path(__file__).resolve().parents[3]
+    # src/spoonbot/controller/xxx.py
+    return Path(__file__).resolve().parents[1]
 
 
 PAGES = {
