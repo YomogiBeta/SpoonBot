@@ -1,6 +1,6 @@
 [project]
 name = "spoonbot"
-version = "0.1.0"
+version = "0.1.10"
 description = "An unofficial wrapper library that makes it easier to use the official API of the live streaming service \"Spoon\""
 readme = "README.md"
 authors = [
