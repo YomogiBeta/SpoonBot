@@ -1,12 +1,14 @@
 from typing import Awaitable, Callable
 
 from spoonbot.dto.event.ChatEvent import ChatEvent
+from spoonbot.dto.event.ConnectEvent import ConnectEvent
 from spoonbot.dto.event.DonationEvent import GiftEvent
 from spoonbot.dto.event.EndEvent import EndEvent
 from spoonbot.dto.event.FollowEvent import FollowEvent
 from spoonbot.dto.event.JoinEvent import JoinEvent
 from spoonbot.dto.event.LikeEvent import LikeEvent
 
+ConnectFuncType = Callable[[ConnectEvent], Awaitable[None] | None]
 ChatFuncType = Callable[[ChatEvent], Awaitable[None] | None]
 PresenceFuncType = Callable[[JoinEvent], Awaitable[None] | None]
 LikeFuncType = Callable[[LikeEvent], Awaitable[None] | None]

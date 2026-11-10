@@ -10,6 +10,7 @@ from aiohttp import (
 )
 
 from spoonbot.dto.event.ChatEvent import ChatEvent
+from spoonbot.dto.event.ConnectEvent import ConnectEvent
 from spoonbot.dto.event.DonationEvent import GiftEvent
 from spoonbot.dto.event.EndEvent import EndEvent
 from spoonbot.dto.event.FollowEvent import FollowEvent
@@ -139,6 +140,7 @@ class SpoonEventStreamManagerTestBase(unittest.IsolatedAsyncioTestCase):
     def setUp(self) -> None:
         self.manager = SpoonEventStreamManager()
         self.manager.tasks = {}
+        self.manager.connect_callbacks = []
         self.manager.chat_callbacks = []
         self.manager.presence_callbacks = []
         self.manager.like_callbacks = []
@@ -207,6 +209,7 @@ class RemoveConnectionTest(SpoonEventStreamManagerTestBase):
 class CallbackAppendTest(SpoonEventStreamManagerTestBase):
     def test_callback_append_adds_to_matching_list(self) -> None:
         cases = [
+            ("connect_callback_append", "connect_callbacks"),
             ("chat_callback_append", "chat_callbacks"),
             ("presence_callback_append", "presence_callbacks"),
             ("like_callback_append", "like_callbacks"),
@@ -220,6 +223,39 @@ class CallbackAppendTest(SpoonEventStreamManagerTestBase):
                 callback = MagicMock()
                 getattr(self.manager, method_name)(callback)
                 self.assertIn(callback, getattr(self.manager, list_name))
+
+
+class ConnectProcessTest(SpoonEventStreamManagerTestBase):
+    async def test_connect_process_builds_event_and_invokes_callbacks(self) -> None:
+        authorization = make_authorization()
+        received: list[ConnectEvent] = []
+
+        def on_connect(event: ConnectEvent) -> None:
+            received.append(event)
+
+        async_callback: Any = AsyncMock()
+        self.manager.connect_callbacks = [on_connect, async_callback]
+
+        await self.manager.connect_process(authorization)
+
+        self.assertEqual(len(received), 1)
+        self.assertIs(received[0].authorization, authorization)
+        self.assertFalse(received[0].reconnect)
+        async_callback.assert_awaited_once_with(received[0])
+
+    async def test_connect_process_includes_reconnect_flag(self) -> None:
+        authorization = make_authorization()
+        received: list[ConnectEvent] = []
+
+        def on_connect(event: ConnectEvent) -> None:
+            received.append(event)
+
+        self.manager.connect_callbacks = [on_connect]
+
+        await self.manager.connect_process(authorization, reconnect=True)
+
+        self.assertEqual(len(received), 1)
+        self.assertTrue(received[0].reconnect)
 
 
 class ChatProcessTest(SpoonEventStreamManagerTestBase):
@@ -347,6 +383,9 @@ class StreamTest(SpoonEventStreamManagerTestBase):
         self.api_client.event_source = FakeEventSource(events)
 
         with (
+            patch.object(
+                self.manager, "connect_process", new=AsyncMock()
+            ) as connect_process,
             patch.object(self.manager, "chat_process", new=AsyncMock()) as chat_process,
             patch.object(
                 self.manager, "presence_process", new=AsyncMock()
@@ -363,6 +402,7 @@ class StreamTest(SpoonEventStreamManagerTestBase):
             await self.manager._stream(authorization)
 
         self.assertEqual(self.api_client.stream_calls, [authorization])
+        connect_process.assert_awaited_once_with(authorization, False)
         chat_process.assert_awaited_once_with(CHAT_PAYLOAD, authorization)
         presence_process.assert_awaited_once_with(PRESENCE_PAYLOAD, authorization)
         like_process.assert_awaited_once_with(LIKE_PAYLOAD, authorization)
@@ -471,7 +511,7 @@ class DoTaskTest(SpoonEventStreamManagerTestBase):
         ) as stream:
             await self.manager._do_task(authorization)
 
-        stream.assert_awaited_once_with(authorization)
+        stream.assert_awaited_once_with(authorization, False)
         self.assertEqual(len(received), 1)
         self.assertIs(received[0].authorization, authorization)
         async_callback.assert_awaited_once_with(received[0])
@@ -493,7 +533,7 @@ class DoTaskTest(SpoonEventStreamManagerTestBase):
             await self.manager._do_task(expired)
 
         self.assertEqual(spoon_bot.get_calls, [expired])
-        stream.assert_awaited_once_with(refreshed)
+        stream.assert_awaited_once_with(refreshed, False)
 
     async def test_do_task_refreshes_after_token_refresh_exception(
         self,

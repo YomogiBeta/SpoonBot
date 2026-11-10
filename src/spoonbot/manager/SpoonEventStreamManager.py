@@ -12,6 +12,7 @@ from aiohttp import ClientConnectionError, ClientPayloadError, ClientResponseErr
 from spoonbot.dto.ChatBody import ChatBody
 from spoonbot.dto.DonationBody import DonationBody
 from spoonbot.dto.event.ChatEvent import ChatEvent
+from spoonbot.dto.event.ConnectEvent import ConnectEvent
 from spoonbot.dto.event.DonationEvent import GiftEvent
 from spoonbot.dto.event.EndEvent import EndEvent
 from spoonbot.dto.event.FollowEvent import FollowEvent
@@ -29,6 +30,7 @@ from spoonbot.httpclient.SpoonApiClient import SpoonApiClient
 from spoonbot.spoon_bot import SpoonBot
 from spoonbot.types.callback_types import (
     ChatFuncType,
+    ConnectFuncType,
     DonationFuncType,
     EndFuncType,
     FollowFuncType,
@@ -48,6 +50,7 @@ logger = logging.getLogger(__name__)
 class SpoonEventStreamManager:
     api_client: SpoonApiClient
     spoon_bot: SpoonBot
+    connect_callbacks: list[ConnectFuncType] = []
     chat_callbacks: list[ChatFuncType] = []
     presence_callbacks: list[PresenceFuncType] = []
     like_callbacks: list[LikeFuncType] = []
@@ -80,6 +83,9 @@ class SpoonEventStreamManager:
         if task is not None:
             task.cancel()
 
+    def connect_callback_append(self, callback: ConnectFuncType):
+        self.connect_callbacks.append(callback)
+
     def chat_callback_append(self, callback: ChatFuncType):
         self.chat_callbacks.append(callback)
 
@@ -98,8 +104,9 @@ class SpoonEventStreamManager:
     def end_callback_append(self, callback: EndFuncType):
         self.end_callbacks.append(callback)
 
-    async def _stream(self, authorization: SpoonAuthorization):
+    async def _stream(self, authorization: SpoonAuthorization, reconnect: bool = False):
         async with self.api_client.stream_live(authorization) as event_source:
+            await self.connect_process(authorization, reconnect)
             async for event in event_source:
                 payload = json.loads(event.data)
                 if not isinstance(payload, dict):
@@ -124,6 +131,17 @@ class SpoonEventStreamManager:
                         logger.warning(f"{exception.message}")
                         continue
                     raise exception
+
+    async def connect_process(
+        self, authorization: SpoonAuthorization, reconnect: bool = False
+    ):
+        connect_event = ConnectEvent(
+            authorization=authorization, reconnect=reconnect
+        )
+        for callback in self.connect_callbacks:
+            result = callback(connect_event)
+            if result is not None and inspect.isawaitable(result):
+                await result
 
     async def chat_process(
         self, payload: dict[str, Any], authorization: SpoonAuthorization
@@ -223,7 +241,7 @@ class SpoonEventStreamManager:
                         or not authorization.valid_access_token()
                     ):
                         authorization = await self._refresh_token(authorization)
-                    await self._stream(authorization)
+                    await self._stream(authorization, safety_index > 1)
                 except TokenRefreshException:
                     authorization = await self._refresh_token(authorization)
                 except ClientResponseError as exception:

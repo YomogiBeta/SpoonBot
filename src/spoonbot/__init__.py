@@ -1,5 +1,6 @@
 from spoonbot.db.config.MySQLConfig import MySQLConfig
 from spoonbot.dto.event.ChatEvent import ChatEvent
+from spoonbot.dto.event.ConnectEvent import ConnectEvent
 from spoonbot.dto.event.DonationEvent import GiftEvent
 from spoonbot.dto.event.EndEvent import EndEvent
 from spoonbot.dto.event.FollowEvent import FollowEvent
@@ -12,6 +13,7 @@ from spoonbot.spoon_bot import SpoonBot
 __all__ = [
     "MySQLConfig",
     "ChatEvent",
+    "ConnectEvent",
     "GiftEvent",
     "EndEvent",
     "FollowEvent",

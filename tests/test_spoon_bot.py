@@ -1035,6 +1035,7 @@ class EventRegistrationTest(SyncBotTest):
     def test_registers_callbacks_on_event_stream_manager(self) -> None:
         callback = MagicMock()
         cases = [
+            (self.bot.connect_event, self.event_stream_manager.connect_callback_append),
             (self.bot.chat_event, self.event_stream_manager.chat_callback_append),
             (self.bot.join_event, self.event_stream_manager.presence_callback_append),
             (self.bot.like_event, self.event_stream_manager.like_callback_append),

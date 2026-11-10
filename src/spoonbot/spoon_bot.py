@@ -46,6 +46,7 @@ from spoonbot.httpclient.dto.ChatSendRequestBody import ChatSendRequestBody
 from spoonbot.httpclient.SpoonApiClient import SpoonApiClient
 from spoonbot.types.callback_types import (
     ChatFuncType,
+    ConnectFuncType,
     DonationFuncType,
     EndFuncType,
     FollowFuncType,
@@ -449,6 +450,9 @@ class SpoonBot:
     def start(self):
         assert self.port is not None
         web.run_app(self.web_application, host="127.0.0.1", port=int(self.port))
+
+    def connect_event(self, callback: ConnectFuncType):
+        self.spoon_event_stream_manager.connect_callback_append(callback)
 
     def chat_event(self, callback: ChatFuncType):
         self.spoon_event_stream_manager.chat_callback_append(callback)
