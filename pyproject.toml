@@ -1,6 +1,6 @@
 [project]
 name = "spoonbot"
-version = "0.1.12"
+version = "0.1.13"
 description = "An unofficial wrapper library that makes it easier to use the official API of the live streaming service \"Spoon\""
 readme = "README.md"
 authors = [
@@ -21,11 +21,6 @@ dependencies = [
     # https://github.com/aio-libs/aiomysql/issues/1080
     # https://github.com/aio-libs/aiomysql/pull/1081
     "PyMySQL<=1.2.0"
-]
-
-[project.optional-dependencies]
-fastapi = [
-    "fastapi>=0.142.2"
 ]
 
 [build-system]
