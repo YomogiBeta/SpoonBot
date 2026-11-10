@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 
-from aiohttp.web_exceptions import HTTPFound, HTTPNotFound
+from aiohttp.web_exceptions import HTTPNotFound
 from aiohttp.web_fileresponse import FileResponse
 from aiohttp.web_request import Request
 from aiohttp.web_response import StreamResponse
@@ -36,7 +36,6 @@ class SpoonBotWebController:
     def __init__(self) -> None:
         for page in PAGES:
             routes.get(f"/spoonbot/{page}")(self.serve_page)
-        routes.get("/")(self.redirect_spoon_connect)
         routes.static("/assets/", ASSETS_DIR)
 
     @staticmethod
@@ -48,10 +47,6 @@ class SpoonBotWebController:
             raise HTTPNotFound()
 
         return FileResponse(filepath)
-
-    @staticmethod
-    async def redirect_spoon_connect(_: Request) -> StreamResponse:
-        return HTTPFound("/spoonbot/connect")
 
     def get_route(self) -> RouteTableDef:
         return routes

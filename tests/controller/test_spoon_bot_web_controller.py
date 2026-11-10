@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from aiohttp import web
 from aiohttp.test_utils import make_mocked_request
-from aiohttp.web_exceptions import HTTPFound, HTTPNotFound
+from aiohttp.web_exceptions import HTTPNotFound
 from aiohttp.web_fileresponse import FileResponse
 from aiohttp.web_routedef import RouteDef, RouteTableDef, StaticDef
 
@@ -50,7 +50,6 @@ class RouteTest(WebControllerTestBase):
                 ("GET", "/spoonbot/success"),
                 ("GET", "/spoonbot/fail"),
                 ("GET", "/spoonbot/invite"),
-                ("GET", "/"),
             },
         )
         self.assertEqual(static_defs, ["/assets/"])
@@ -85,17 +84,6 @@ class ServePageTest(WebControllerTestBase):
             self.assertRaises(HTTPNotFound),
         ):
             await self.controller.serve_page(request)
-
-
-class RedirectSpoonConnectTest(WebControllerTestBase):
-    async def test_redirects_root_to_connect_page(self) -> None:
-        request = make_request("/")
-
-        response = await self.controller.redirect_spoon_connect(request)
-
-        self.assertIsInstance(response, HTTPFound)
-        redirect = cast(HTTPFound, response)
-        self.assertEqual(redirect.location, "/spoonbot/connect")
 
 
 if __name__ == "__main__":
