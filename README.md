@@ -12,7 +12,12 @@ Spoonbotは、オーディオライブプラットフォーム「Spoon」が公�
 ## Spoon Developpersの申請
 
 本ライブラリの使用するためには、以下の申請が完了している必要があります。
+
 <https://developers.spooncast.net/docs/ja/getting-started/app-registration>
+
+### 注意
+Spoon Developpers申請に利用したアカウントはそのままボットアカウントとして、連携先のDJのライブでチャット送信などを行います。(Botアカウントが発行されるわけではなく、自分のアカウントがBotのように振る舞うようになる。)  
+これは、本ライブラリの仕様ではなくSpoon Developpersの仕様です。詳細はSpoon Developpersにお問い合わせください。
 
 ## インストール
 
@@ -39,6 +44,9 @@ from spoonbot import (
 
 spoonbot = SpoonBot(
     permissions=set(SpoonPermission)
+    # 権限を個別に指定する場合 ↓
+    # ここで指定しなかったとしても、チャットの送受信と連携ユーザーの情報取得権限は本ライブラリの最低要件として自動指定されます。
+    # permissions={SpoonPermission.EVENTS_LIKE, SpoonPermission.DJ_FOLLOW}
 )
 
 
@@ -135,8 +143,25 @@ uv run main.py
 
 ## 連携
 
-Botを連携するには、まず以下のURLを案内します。
-https://{your domain}/spoonbot/connect
+Botを連携するには、まず以下のURLを案内します。  
+https://{your domain}/spoonbot/connect  
+
+<img width="400" height="492" alt="spoonbot-test aakun-da f5 si_spoonbot_connect(iPhone 16)" src="https://github.com/user-attachments/assets/58e98073-f30e-4afd-87cf-28e622828f61" />
+
+「ボットを連携する」をクリックし、spoonのページで認証認可を完了すると、以下のページへ遷移します
+
+<img width="400" height="492" alt="spoonbot-test aakun-da f5 si_spoonbot_success(iPhone 16)" src="https://github.com/user-attachments/assets/3b3becba-e6cf-4e75-9209-9741c97a11c4" />
+
+「ボット招待ページへ」を押した後、先ほど連携したアカウントで、**Spoonライブ配信を開始してください。**  
+ライブ配信を開始したら、「今すぐBotを招待する」を押してください。
+
+<img width="400" height="480" alt="spoonbot-test aakun-da f5 si_spoonbot_invite(iPhone 16)" src="https://github.com/user-attachments/assets/03a6f1bc-90a0-4a71-afb5-63eca8222bc0" />
+
+**Spoon Developpersを申請したアカウントがBotとして配信に入室してきたら、連携成功です。**  
+
+<img width="552" height="135" alt="スクリーンショット 2026-11-10 210610" src="https://github.com/user-attachments/assets/1ad98723-bd5c-4b5a-bafd-a04c819d3f51" />
+
+
 
 ## 最後に
 
