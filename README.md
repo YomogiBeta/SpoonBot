@@ -32,6 +32,7 @@ uv add spoonbot
 ```
 
 ## Example
+### イベントを受け取り、チャットを送信する
 
 以下の内容で`main.py`を作成します。
 
@@ -112,9 +113,31 @@ async def end(end_event: EndEvent):
 
 </details>
 
+### ライブルーム(枠)を特定する
+
+全てのイベントには`authorization`データが付与されています。`authorization.id`はライブルーム(枠)ごとに固有のIDになっており、DJがライブを開きなおしてもこのIDは変わりません。このIDを参照することでライブルーム(枠)を識別することができます。
+
+```python
+spoonbot = SpoonBot(permissions=set(SpoonPermission))
+chat_count_dict: dict[str, int] = dict()
+
+@spoonbot.chat_event
+async def countup_chat(chat_event: ChatEvent):
+    chat_count = chat_count_dict.get(chat_event.authorization.id, 0)
+    chat_count_dict[chat_event.authorization.id] = chat_count + 1
+
+@spoonbot.end_event
+async def end(end_event: EndEvent):
+    chat_count_dict.pop(end_event.authorization.id)
+
+spoonbot.start()
+```
+
+上記のコードでは、ライブルーム(枠) ごとにチャット数をカウントして記録します。また、ライブルーム(枠)が終了したら、カウントをリセットします。
+
 ## 必要な環境変数
 
-必須の物は必ず指定する必要があります。ただし、環境変数キーまたはSpoonBot初期荷時引数のどちらかで指定すればよいです。
+必須の物は必ず指定する必要があります。ただし、環境変数またはSpoonBot初期化時引数のどちらかで指定すればよいです。
 
 | 環境変数キー             | SpoonBot初期化時引数 | 説明                                                                                                                                                                                                                                                                                                         | 必須 | 
 | ------------------------ | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- | 
@@ -129,7 +152,7 @@ async def end(end_event: EndEvent):
 
 ## 実行
 
-以下のコマンドで実行し、web上に公開します。必要に応じて上段にNginxなどを設ければよいと思いますが、小規模であればその必要もないと思います。
+以下のコマンドで実行し、外部ネットワークから接続できるようにします。必要に応じて上段にNginxなどを設ければよいと思いますが、小規模であればその必要もないと思います。
 
 ```bash
 python main.py
