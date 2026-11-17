@@ -1,6 +1,6 @@
 [project]
 name = "spoonbot"
-version = "0.1.13"
+version = "0.1.14"
 description = "An unofficial wrapper library that makes it easier to use the official API of the live streaming service \"Spoon\""
 readme = "README.md"
 authors = [
@@ -29,8 +29,10 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "mkdocstrings-python>=2.0.11",
     "pyright>=1.1.414",
     "ruff>=0.16.10",
+    "zensical>=0.1.1",
 ]
 [tool.ruff.lint]
 select = ["E", "F", "PLE"]

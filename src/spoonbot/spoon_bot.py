@@ -182,7 +182,378 @@ class SpoonBot:
         self.spoon_user_repository = SpoonUserRepository()
         await self.spoon_user_repository.initialize(self.mysql_config)
 
+    def start(self):
+        """SpoonBotサーバーを起動します。
+
+        aiohttpのWebアプリケーションを``127.0.0.1``の設定ポート（デフォルト8080）で
+        実行します。このメソッドはサーバーが停止するまでブロックし、OAuthコールバックや
+        EventStreamの受信はこのサーバー経由で処理されます。
+
+        ポート番号は SPOON_BOT_PORT 環境変数、
+        または 初期化時引数の``port``で変更できます。
+
+        Raises:
+            AssertionError: ポートが未設定の場合。
+        """
+        assert self.port is not None
+        web.run_app(self.web_application, host="127.0.0.1", port=int(self.port))
+
+    def connect_event(self, callback: ConnectFuncType):
+        """イベントストリームへの接続が確立したときに呼び出されるコールバックを登録します。
+
+        コールバックには``ConnectEvent``が渡されます。``reconnect``属性で初回接続か
+        再接続かを判別できます。コールバックは同期・非同期のどちらでも登録できます。
+
+        Args:
+            callback: 接続時に実行する関数またはコルーチン関数。
+
+        Examples:
+            ```python
+            from spoonbot import ConnectEvent
+
+            @spoonbot.connect_event
+            async def on_connect(connect_event: ConnectEvent):
+                if not connect_event.reconnect:
+                    await spoonbot.send_chat(
+                        "I'm here!", connect_event.authorization
+                    )
+            ```
+        """
+        self.spoon_event_stream_manager.connect_callback_append(callback)
+
+    def chat_event(self, callback: ChatFuncType):
+        """ライブのチャットを受信したときに呼び出されるコールバックを登録します。
+
+        コールバックには送信者やメッセージなどのチャット内容と認可情報を含む
+        ``ChatEvent``が渡されます。コールバックは同期・非同期のどちらでも登録できます。
+
+        Args:
+            callback: チャット受信時に実行する関数またはコルーチン関数。
+
+        Examples:
+            ```python
+            from spoonbot import ChatEvent
+
+            @spoonbot.chat_event
+            async def on_chat(chat_event: ChatEvent):
+                if chat_event.chat_body.message == "Hello":
+                    await spoonbot.send_chat(
+                        f"Hello {chat_event.chat_body.user.nickname}!!",
+                        chat_event.authorization,
+                    )
+            ```
+        """
+        self.spoon_event_stream_manager.chat_callback_append(callback)
+
+    def join_event(self, callback: PresenceFuncType):
+        """リスナーがライブへ入室したときに呼び出されるコールバックを登録します。
+
+        コールバックには入室したユーザーの情報を含む``JoinEvent``が渡されます。
+        コールバックは同期・非同期のどちらでも登録できます。
+
+        Args:
+            callback: 入室時に実行する関数またはコルーチン関数。
+
+        Examples:
+            ```python
+            from spoonbot import JoinEvent
+
+            @spoonbot.join_event
+            async def on_join(join_event: JoinEvent):
+                await spoonbot.send_chat(
+                    f"Welcome {join_event.presence_body.user.nickname}!!",
+                    join_event.authorization,
+                )
+            ```
+        """
+        self.spoon_event_stream_manager.presence_callback_append(callback)
+
+    def like_event(self, callback: LikeFuncType):
+        """リスナーが「いいね」を送信したときに呼び出されるコールバックを登録します。
+
+        コールバックには「いいね」を行ったユーザーなどの情報を含む``LikeEvent``が渡されます。
+        コールバックは同期・非同期のどちらでも登録できます。
+
+        Args:
+            callback: 「いいね」受信時に実行する関数またはコルーチン関数。
+
+        Examples:
+            ```python
+            from spoonbot import LikeEvent
+
+            @spoonbot.like_event
+            async def on_like(like_event: LikeEvent):
+                await spoonbot.send_chat(
+                    f"Thank you! {like_event.like_body.user.nickname}",
+                    like_event.authorization,
+                )
+            ```
+        """
+        self.spoon_event_stream_manager.like_callback_append(callback)
+
+    def gift_event(self, callback: DonationFuncType):
+        """リスナーがギフト（投げ銭）を送信したときに呼び出されるコールバックを登録します。
+
+        コールバックにはギフトの内容や送信者などを含む``GiftEvent``が渡されます。
+        コールバックは同期・非同期のどちらでも登録できます。
+
+        Args:
+            callback: ギフト受信時に実行する関数またはコルーチン関数。
+
+        Examples:
+            ```python
+            from spoonbot import GiftEvent
+
+            @spoonbot.gift_event
+            async def on_gift(gift_event: GiftEvent):
+                await spoonbot.send_chat(
+                    f"Thank you for the gift! "
+                    f"{gift_event.donation_body.user.nickname}",
+                    gift_event.authorization,
+                )
+            ```
+        """
+        self.spoon_event_stream_manager.donation_callback_append(callback)
+
+    def follow_event(self, callback: FollowFuncType):
+        """リスナーがDJをフォローしたときに呼び出されるコールバックを登録します。
+
+        コールバックにはフォローしたユーザーの情報などを含む``FollowEvent``が渡されます。
+        コールバックは同期・非同期のどちらでも登録できます。
+
+        Args:
+            callback: フォロー時に実行する関数またはコルーチン関数。
+
+        Examples:
+            ```python
+            from spoonbot import FollowEvent
+
+            @spoonbot.follow_event
+            async def on_follow(follow_event: FollowEvent):
+                await spoonbot.send_chat(
+                    f"Thank you for following! "
+                    f"{follow_event.follow_body.user.nickname}",
+                    follow_event.authorization,
+                )
+            ```
+        """
+        self.spoon_event_stream_manager.follow_callback_append(callback)
+
+    def end_event(self, callback: EndFuncType):
+        """ライブの配信が終了したときに呼び出されるコールバックを登録します。
+
+        コールバックには終了したライブの認可情報などを含む``EndEvent``が渡されます。
+        コールバックは同期・非同期のどちらでも登録できます。
+
+        Args:
+            callback: ライブ終了時に実行する関数またはコルーチン関数。
+
+        Examples:
+            ```python
+            from spoonbot import EndEvent
+
+            @spoonbot.end_event
+            async def on_end(end_event: EndEvent):
+                print(f"Live ended: {end_event.authorization.id}")
+            ```
+        """
+        self.spoon_event_stream_manager.end_callback_append(callback)
+
+    @_too_request_handling
+    async def send_chat(self, message: str, authorization: SpoonAuthorization) -> bool:
+        """ライブのチャットへメッセージを送信します。
+
+        送信前にメッセージの妥当性を検証し、無効な場合は送信せず``False``を返します。
+        メッセージは UTF-16 code unit 基準で文字数をカウントしたときに、
+        200文字を超過している場合、送信されずにfalseとなります。
+        これはSpoon Developpers側の制約です。
+
+        送信に成功した場合は``True``を返します。
+
+        Args:
+            message: 送信するチャットメッセージ。
+            authorization: チャットを送信するユーザーの認可情報。
+
+        Returns:
+            bool: メッセージが有効で送信に成功した場合は``True``、無効な場合は
+                ``False``。
+
+        Raises:
+            BurstRequestException: 短時間のリクエスト上限（バースト制限）に達した場合。
+            DailyRequestLimitException: 1日あたりのAPIリクエスト上限に達した場合。
+            ChatRoomCrowdedException: 同じチャットルーム内で短時間に大量のコメントが
+                投稿され、ルーム側の制限に達した場合。Bot自身の送信量ではなく、
+                ルーム全体のコメント量が原因です。
+            MessageSendUnavailableException: チャット欄が凍結されている、またはBotが
+                チャットへのメッセージ送信を禁止されている場合。
+
+        Examples:
+            >>> await spoonbot.send_chat("Hello!", chat_event.authorization)
+            True
+        """
+        request_body = ChatSendRequestBody(message=message)
+        if not request_body.valid_message():
+            return False
+        await self.api_client.send_chat(request_body, authorization)
+        return True
+
+    @_too_request_handling
+    async def get_live(self, authorization: SpoonAuthorization) -> LiveRoom:
+        """現在配信中のライブルーム情報を取得します。
+
+        Args:
+            authorization: 対象ライブを配信しているDJの認可情報。
+
+        Returns:
+            LiveRoom: ライブのタイトルや参加者数などの情報を保持するオブジェクト。
+
+        Raises:
+            BurstRequestException: 短時間のリクエスト上限（バースト制限）に達した場合。
+            DailyRequestLimitException: 1日あたりのAPIリクエスト上限に達した場合。
+        """
+        result = await self.api_client.get_live(authorization)
+        return LiveRoom.model_validate(result.body.model_dump())
+
+    @_too_request_handling
+    async def get_live_listeners(
+        self, authorization: SpoonAuthorization
+    ) -> ListenerData:
+        """ライブルームに参加しているリスナーの一覧を取得します。
+
+        APIのページネーションを自動的に辿り、全てのリスナーを1つの``ListenerData``へ
+        集約して返します。
+
+        Args:
+            authorization: 対象ライブルームのDJの認可情報。
+
+        Returns:
+            ListenerData: ライブに参加中のリスナーを保持する一覧オブジェクト。
+
+        Raises:
+            BurstRequestException: 短時間のリクエスト上限（バースト制限）に達した場合。
+            DailyRequestLimitException: 1日あたりのAPIリクエスト上限に達した場合。
+        """
+        result = ListenerData()
+        cursor = None
+        while True:
+            fetch_data = await self.api_client.get_live_listeners(authorization, cursor)
+            result.extend(
+                [
+                    SpoonListener.model_validate(listener.model_dump())
+                    for listener in fetch_data.body.listeners
+                ]
+            )
+            cursor = fetch_data.body.nextCursor
+            if cursor is None:
+                break
+        return result
+
+    @_too_request_handling
+    async def get_live_fans(self, authorization: SpoonAuthorization) -> FanData:
+        """ライブルームのファン情報を取得します。
+
+        Args:
+            authorization: 対象ライブルームのDJの認可情報。
+
+        Returns:
+            FanData: ライブのファンに関する情報を保持するオブジェクト。
+
+        Raises:
+            BurstRequestException: 短時間のリクエスト上限（バースト制限）に達した場合。
+            DailyRequestLimitException: 1日あたりのAPIリクエスト上限に達した場合。
+        """
+        result = await self.api_client.get_live_fans(authorization)
+        return FanData.model_validate(result.body.model_dump())
+
+    @_too_request_handling
+    async def get_live_donations(
+        self, authorization: SpoonAuthorization
+    ) -> DonationData:
+        """ライブルームで行われたギフト（投げ銭）の一覧を取得します。
+
+        APIのページネーションを自動的に辿り、全てのギフトを1つの``DonationData``へ
+        集約して返します。
+
+        Args:
+            authorization: 対象ライブルームのDJの認可情報。
+
+        Returns:
+            DonationData: ライブで送信されたギフトを保持する一覧オブジェクト。
+
+        Raises:
+            BurstRequestException: 短時間のリクエスト上限（バースト制限）に達した場合。
+            DailyRequestLimitException: 1日あたりのAPIリクエスト上限に達した場合。
+        """
+        result = DonationData()
+        cursor = None
+        while True:
+            fetch_data = await self.api_client.get_live_donations(authorization, cursor)
+            result.extend(
+                [
+                    Donation.model_validate(listener.model_dump())
+                    for listener in fetch_data.body.donations
+                ]
+            )
+            cursor = fetch_data.body.nextCursor
+            if cursor is None:
+                break
+        return result
+
+    @_too_request_handling
+    async def follow_dj(self, authorization: SpoonAuthorization) -> bool:
+        """現在配信中のDJをフォローします。
+
+        Args:
+            authorization: フォロー操作を行うユーザーの認可情報。
+
+        Returns:
+            bool: フォロー処理に成功した場合は``True``。
+
+        Raises:
+            BurstRequestException: 短時間のリクエスト上限（バースト制限）に達した場合。
+            DailyRequestLimitException: 1日あたりのAPIリクエスト上限に達した場合。
+        """
+        result = await self.api_client.follow_dj(authorization)
+        return result.body
+
+    def get_bot_name(self) -> str:
+        """設定されているBot名を取得します。
+
+        Returns:
+            str: Bot名。未設定または空文字の場合は``"Spoon bot"``を返します。
+        """
+        return self.bot_name if len(self.bot_name) > 0 else "Spoon bot"
+
+    def get_bot_operation_page(self) -> str | None:
+        """Bot運用ページとして設定されたURLまたはパスを取得します。
+
+        Returns:
+            str | None: 設定されたURLもしくはパス。未設定の場合は``None``。
+        """
+        return self.bot_operation_page
+
     def user_authorize_url(self) -> AuthorizeUrl:
+        """SpoonアカウントとのOAuth連携を開始するための認可URLを生成します。
+
+        推測困難なstate値を生成して署名し、OAuth 2.0の認可リクエストURLを組み立てます。
+        返される``AuthorizeUrl.state``は署名前のstate値であり、コールバック時に
+        ``get_authorization``へ渡すことで改ざん検知を行います。
+
+        通常、このメソッドをライブラリ利用者が利用することはありません。oauthはライブラリによおってハンドリングされています。
+        セッションを高度に制御したい場合のみ利用します。
+
+
+        Returns:
+            AuthorizeUrl: ユーザーをリダイレクトさせる認可URLと、署名前のstate値を
+                保持するオブジェクト。
+
+        Raises:
+            AssertionError: クライアントIDまたはリダイレクトURLが未設定の場合。
+
+        Examples:
+            >>> authorize_url = spoonbot.user_authorize_url()
+            >>> print(authorize_url.url)
+        """
         assert self.spoon_client_id is not None, "Required SPOON_CLIENT_ID"
         assert self.oauth_redirect_url is not None, "Required SPOON_OAUTH_REDIRECT_URL"
 
@@ -200,6 +571,31 @@ class SpoonBot:
     async def get_authorization(
         self, code: str | None, state: str | None, signed_state: str | None
     ) -> SpoonAuthorization:
+        """OAuthコールバックで受け取った認可コードをトークン情報へ交換します。
+
+        認可コードとstateの妥当性を検証したうえでSpoon APIへトークン交換を要求し、
+        アクセストークン・リフレッシュトークン・有効期限などを含む
+        ``SpoonAuthorization``を返します。stateは署名付きの値と突き合わせ、
+        署名の有効期限は3分です。
+
+        通常、このメソッドをライブラリ利用者が利用することはありません。oauthはライブラリによおってハンドリングされています。
+        セッションを高度に制御したい場合のみ利用します。
+
+        Args:
+            code: Spoonから返されるワンタイムの認可コード。
+            state: 認可リクエスト時に``user_authorize_url``が生成したstate値。
+            signed_state: 認可リクエスト時に署名されたstate値。通常はクエリパラメータ
+                として返されます。
+
+        Returns:
+            SpoonAuthorization: トークン情報とSpoonユーザーIDを保持する認可情報。
+
+        Raises:
+            HTTPUnauthorized: 認可コードまたはstateが空の場合。
+            HTTPForbidden: stateが署名済みの値と一致しない場合。
+            itsdangerous.BadSignature: 署名が不正、または署名の有効期限が切れている
+                場合。
+        """
         if code is None or len(code) <= 0:
             raise HTTPUnauthorized(
                 reason="UnAuthorization: oauth one time code is none or empty"
@@ -232,6 +628,25 @@ class SpoonBot:
     async def get_authorization_by_refresh_token(
         self, authorization: SpoonAuthorization
     ) -> SpoonAuthorization:
+        """リフレッシュトークンを使って新しい認可情報を取得します。
+
+        保持しているリフレッシュトークンの有効期限が切れている場合は再認可が必要なため
+        ``HTTPUnauthorized``を送出します。有効な場合はSpoon APIへトークン更新を要求し、
+        同じSpoonユーザーID・トークン状態を引き継いだ新しい``SpoonAuthorization``を返します。
+
+        通常、このメソッドをライブラリ利用者が利用することはありません。トークンの有効期限はライブラリにより管理されています。
+
+        Args:
+            authorization: 更新対象の認可情報。
+
+        Returns:
+            SpoonAuthorization: 更新後のアクセストークン・リフレッシュトークン・
+                有効期限を持つ認可情報。
+
+        Raises:
+            HTTPUnauthorized: リフレッシュトークンが期限切れ、または更新に利用できない
+                場合。
+        """
         if authorization.end_refresh_token():
             raise HTTPUnauthorized(reason="UnAuthorization: refresh token is invalid")
         token_respons = await self.api_client.refresh_token(authorization.refresh_token)
@@ -248,6 +663,26 @@ class SpoonBot:
         )
 
     async def start_stream_by_session(self, session_id: str, x_csrf_token: str) -> bool:
+        """セッションIDとCSRFトークンを検証し、Spoonのイベントストリームへ接続します。
+
+        session_idはHMAC-SHA256でハッシュ化したうえでDBを検索します。DBに保存された
+        CSRFトークンと``x_csrf_token``が一致した場合のみ、対象ユーザーの認可情報を使って
+        EventStreamへの接続を開始します。
+
+        通常、このメソッドをライブラリ利用者が利用することはありません。ストリームへの接続はライブラリによって管理されています。
+
+        Args:
+            session_id: クライアントが保持している生のセッションID。
+            x_csrf_token: クライアントから送信されたCSRFトークン。
+
+        Returns:
+            bool: イベントストリームへの接続追加に成功した場合は``True``。
+
+        Raises:
+            HTTPUnauthorized: セッションが存在しない場合、またはリフレッシュトークンが
+                期限切れの場合。
+            HTTPForbidden: CSRFトークンが未設定、または送信値と一致しない場合。
+        """
         encoded_session_id = self._hmac_sha256(session_id)
         result = await self.spoon_user_repository.get_token_data_by_session_id(
             encoded_session_id
@@ -276,6 +711,23 @@ class SpoonBot:
     async def save_authorization(
         self, authorization: SpoonAuthorization, force_refresh: bool = False
     ) -> bool:
+        """認可情報をトークン保存領域へ保存します。
+
+        対象Spoonユーザーのトークンが既に存在する場合は更新し、存在しない場合は新規挿入します。
+        ``force_refresh``に``True``を指定すると既存確認を行わず、常に更新処理を実行します。
+
+        通常、このメソッドをライブラリ利用者が利用することはありません。セッションはライブラリによって管理されています。
+        セッションを高度に制御したい場合のみ利用します。
+
+        Args:
+            authorization: 保存対象の認可情報。
+            force_refresh: 既存トークンの有無にかかわらず更新するかどうか。
+                デフォルトは``False``。
+
+        Returns:
+            bool: 保存（挿入または更新）に成功した場合は``True``、失敗した場合は
+                ``False``。
+        """
         authorization_dto = TokenDataDto(
             id=authorization.id,
             access_token=authorization.access_token,
@@ -296,6 +748,24 @@ class SpoonBot:
         return await self.spoon_user_repository.insert_token(authorization_dto)
 
     async def save_session(self, authorization: SpoonAuthorization) -> str:
+        """認可情報に紐づく新しいログインセッションを作成します。
+
+        推測困難なセッションIDを生成し、DBにはHMAC-SHA256でハッシュ化した値のみを保存します。
+        セッションの有効期限は``DEFAULT_SESSION_EXPIRES_IN``秒後です。
+
+        通常、このメソッドをライブラリ利用者が利用することはありません。セッションはライブラリによって管理されています。
+        セッションを高度に制御したい場合のみ利用します。
+
+        Args:
+            authorization: セッションを紐づける認可情報。
+
+        Returns:
+            str: クライアントへ返却する生のセッションID。DBには保存されないため、
+            この値は発行時にのみ取得できます。
+
+        Raises:
+            HTTPInternalServerError: セッションのDB保存に失敗した場合。
+        """
         session_id = secrets.token_urlsafe(32)
 
         expires_at = int(time.time()) + DEFAULT_SESSION_EXPIRES_IN
@@ -318,6 +788,20 @@ class SpoonBot:
     async def get_authorization_by_session_id(
         self, session_id: str
     ) -> SpoonAuthorization:
+        """セッションIDから対応する認可情報を取得します。
+
+        受け取ったセッションIDをHMAC-SHA256でハッシュ化してセッションを検索し、
+        紐づくSpoonユーザーのトークン情報を``SpoonAuthorization``として返します。
+
+        Args:
+            session_id: クライアントが保持している生のセッションID。
+
+        Returns:
+            SpoonAuthorization: セッションに紐づく認可情報。
+
+        Raises:
+            HTTPUnauthorized: セッションまたはトークン情報が存在しない場合。
+        """
         session_data = await self.spoon_user_repository.get_session_data(
             self._hmac_sha256(session_id)
         )
@@ -340,6 +824,23 @@ class SpoonBot:
         )
 
     async def regenerate_csrf_token(self, session_id: str) -> str:
+        """セッションに紐づくCSRFトークンを再発行します。
+
+        新しいランダムなCSRFトークンを生成してDBを更新します。EventStream接続時の
+        検証にはこの値を使用します。
+
+        通常、このメソッドをライブラリ利用者が利用することはありません。セッションはライブラリによって管理されています。
+        セッションを高度に制御したい場合のみ利用します。
+
+        Args:
+            session_id: 対象セッションの生のID。
+
+        Returns:
+            str: 新しく発行されたCSRFトークン。
+
+        Raises:
+            HTTPInternalServerError: DB上のCSRFトークン更新に失敗した場合。
+        """
         csrf_token = secrets.token_urlsafe(32)
         success = await self.spoon_user_repository.update_csrf_token(
             self._hmac_sha256(session_id), csrf_token.encode("utf-8")
@@ -356,67 +857,6 @@ class SpoonBot:
             text.encode("utf-8"),
             hashlib.sha256,
         ).digest()
-
-    @_too_request_handling
-    async def get_live(self, authorization: SpoonAuthorization) -> LiveRoom:
-        result = await self.api_client.get_live(authorization)
-        return LiveRoom.model_validate(result.body.model_dump())
-
-    @_too_request_handling
-    async def get_live_listeners(
-        self, authorization: SpoonAuthorization
-    ) -> ListenerData:
-        result = ListenerData()
-        cursor = None
-        while True:
-            fetch_data = await self.api_client.get_live_listeners(authorization, cursor)
-            result.extend(
-                [
-                    SpoonListener.model_validate(listener.model_dump())
-                    for listener in fetch_data.body.listeners
-                ]
-            )
-            cursor = fetch_data.body.nextCursor
-            if cursor is None:
-                break
-        return result
-
-    @_too_request_handling
-    async def get_live_fans(self, authorization: SpoonAuthorization) -> FanData:
-        result = await self.api_client.get_live_fans(authorization)
-        return FanData.model_validate(result.body.model_dump())
-
-    @_too_request_handling
-    async def get_live_donations(
-        self, authorization: SpoonAuthorization
-    ) -> DonationData:
-        result = DonationData()
-        cursor = None
-        while True:
-            fetch_data = await self.api_client.get_live_donations(authorization, cursor)
-            result.extend(
-                [
-                    Donation.model_validate(listener.model_dump())
-                    for listener in fetch_data.body.donations
-                ]
-            )
-            cursor = fetch_data.body.nextCursor
-            if cursor is None:
-                break
-        return result
-
-    @_too_request_handling
-    async def send_chat(self, message: str, authorization: SpoonAuthorization) -> bool:
-        request_body = ChatSendRequestBody(message=message)
-        if not request_body.valid_message():
-            return False
-        await self.api_client.send_chat(request_body, authorization)
-        return True
-
-    @_too_request_handling
-    async def follow_dj(self, authorization: SpoonAuthorization) -> bool:
-        result = await self.api_client.follow_dj(authorization)
-        return result.body
 
     def _normalize_page_target(self, value: str | None) -> str | None:
         if value is None:
@@ -435,12 +875,6 @@ class SpoonBot:
             value = f"/{value}"
 
         return value
-
-    def get_bot_name(self) -> str:
-        return self.bot_name if len(self.bot_name) > 0 else "Spoon bot"
-
-    def get_bot_operation_page(self) -> str | None:
-        return self.bot_operation_page
 
     def startup_function(self):
         async def on_startup(web_application: web.Application):
@@ -465,28 +899,3 @@ class SpoonBot:
             await self.spoon_user_repository.close()
 
         return on_cleanup
-
-    def start(self):
-        assert self.port is not None
-        web.run_app(self.web_application, host="127.0.0.1", port=int(self.port))
-
-    def connect_event(self, callback: ConnectFuncType):
-        self.spoon_event_stream_manager.connect_callback_append(callback)
-
-    def chat_event(self, callback: ChatFuncType):
-        self.spoon_event_stream_manager.chat_callback_append(callback)
-
-    def join_event(self, callback: PresenceFuncType):
-        self.spoon_event_stream_manager.presence_callback_append(callback)
-
-    def like_event(self, callback: LikeFuncType):
-        self.spoon_event_stream_manager.like_callback_append(callback)
-
-    def gift_event(self, callback: DonationFuncType):
-        self.spoon_event_stream_manager.donation_callback_append(callback)
-
-    def follow_event(self, callback: FollowFuncType):
-        self.spoon_event_stream_manager.follow_callback_append(callback)
-
-    def end_event(self, callback: EndFuncType):
-        self.spoon_event_stream_manager.end_callback_append(callback)
