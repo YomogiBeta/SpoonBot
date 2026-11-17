@@ -32,6 +32,10 @@ uv add spoonbot
 ```
 
 ## Example
+
+より詳細な仕様を知りたい場合は、[ドキュメント](https://yomogibeta.github.io/SpoonBot/reference/spoon_bot/)をご覧ください。
+早く始めたい場合、Exampleをご覧ください。
+
 ### イベントを受け取り、チャットを送信する
 
 以下の内容で`main.py`を作成します。
