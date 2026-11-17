@@ -315,9 +315,28 @@ class SpoonBot:
             raise HTTPInternalServerError()
         return session_id
 
-    async def get_session(self, session_id: str) -> SessionDataDto | None:
-        return await self.spoon_user_repository.get_session_data(
+    async def get_authorization_by_session_id(
+        self, session_id: str
+    ) -> SpoonAuthorization:
+        session_data = await self.spoon_user_repository.get_session_data(
             self._hmac_sha256(session_id)
+        )
+        if session_data is None:
+            raise HTTPUnauthorized()
+        token_data = await self.spoon_user_repository.get_token_data(
+            session_data.authorization_spoon_user_id
+        )
+        if token_data is None:
+            raise HTTPUnauthorized()
+        return SpoonAuthorization(
+            id=token_data.id,
+            access_token=token_data.access_token,
+            token_type=token_data.token_type,
+            expire_at=token_data.expire_at,
+            refresh_expire_at=token_data.refresh_expire_at,
+            refresh_token=token_data.refresh_token,
+            scope=token_data.scope,
+            token_status=TokenStatus(token_data.token_status),
         )
 
     async def regenerate_csrf_token(self, session_id: str) -> str:
