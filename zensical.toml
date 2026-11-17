@@ -1,0 +1,29 @@
+[project]
+site_name = "SpoonBot Documentation"
+site_description = "SpoonBot Documentation"
+
+[project.plugins.mkdocstrings]
+default_handler = "python"
+
+[project.plugins.mkdocstrings.handlers.python]
+paths = ["src"]
+
+[project.plugins.api-autonav]
+enabled = true
+modules = ["src/spoonbot"]
+api_root_uri = "reference"
+nav_section_title = "Reference"
+
+[[project.nav]]
+"Reference" = [
+    "reference/spoon_bot.md",
+    { "Events" = [
+        "reference/event/connect_event.md",
+        "reference/event/chat_event.md",
+        "reference/event/join_event.md",
+        "reference/event/like_event.md",
+        "reference/event/gift_event.md",
+        "reference/event/follow_event.md",
+        "reference/event/end_event.md",
+    ] },
+]
