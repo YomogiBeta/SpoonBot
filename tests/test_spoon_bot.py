@@ -734,8 +734,8 @@ class SaveSessionTest(AsyncBotTest):
         log_error.assert_called_once_with("Failed to insert new Session Data.")
 
 
-class GetSessionTest(AsyncBotTest):
-    async def test_uses_hashed_session_id(self) -> None:
+class GetAuthorizationBySessionIdTest(AsyncBotTest):
+    async def test_returns_authorization_for_hashed_session_id(self) -> None:
         session = SessionDataDto(
             id=b"u" * 16,
             authorization_spoon_user_id="user-1",
@@ -743,13 +743,37 @@ class GetSessionTest(AsyncBotTest):
             expires_at=NOW,
         )
         self.repository.get_session_data.return_value = session
+        self.repository.get_token_data.return_value = make_token()
 
-        result = await self.bot.get_session("session-id")
+        result = await self.bot.get_authorization_by_session_id("session-id")
 
-        self.assertIs(result, session)
         self.repository.get_session_data.assert_awaited_once_with(
             self.bot._hmac_sha256("session-id")
         )
+        self.repository.get_token_data.assert_awaited_once_with("user-1")
+        self.assertEqual(result, make_authorization())
+
+    async def test_raises_unauthorized_when_session_is_not_found(self) -> None:
+        self.repository.get_session_data.return_value = None
+
+        with self.assertRaises(HTTPUnauthorized):
+            await self.bot.get_authorization_by_session_id("session-id")
+
+        self.repository.get_token_data.assert_not_awaited()
+
+    async def test_raises_unauthorized_when_token_is_not_found(self) -> None:
+        self.repository.get_session_data.return_value = SessionDataDto(
+            id=b"u" * 16,
+            authorization_spoon_user_id="user-1",
+            encoded_session_id=b"e" * 32,
+            expires_at=NOW,
+        )
+        self.repository.get_token_data.return_value = None
+
+        with self.assertRaises(HTTPUnauthorized):
+            await self.bot.get_authorization_by_session_id("session-id")
+
+        self.repository.get_token_data.assert_awaited_once_with("user-1")
 
 
 class RegenerateCsrfTokenTest(AsyncBotTest):
